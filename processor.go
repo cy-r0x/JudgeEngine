@@ -126,7 +126,7 @@ func (p *CPP) Run(boxId int, submission Submission) {
 			"--stdout=out.txt",
 			fmt.Sprintf("--time=%.3f", submission.Time/1000),
 			fmt.Sprintf("--wall-time=%.3f", (submission.Time/1000)*1.5),
-			"--fsize=1024",
+			"--fsize=10240",
 			fmt.Sprintf("--mem=%d", memLimit),
 			"--meta="+metaPath,
 			"--run",
@@ -136,6 +136,10 @@ func (p *CPP) Run(boxId int, submission Submission) {
 		_ = isolateCmd.Run()
 
 		Compare(boxPath, &maxTime, &maxRSS, &finalResult, i, submission.UserId)
+
+		if finalResult != "Accepted" {
+			break
+		}
 	}
 
 	log.Printf("Submission %s (User %d): %s (Time: %.3fs, Memory: %dKB)",
@@ -187,7 +191,7 @@ func (p *Python) Run(boxId int, submission Submission) {
 			"--stdout=out.txt",
 			fmt.Sprintf("--time=%.3f", submission.Time/1000),
 			fmt.Sprintf("--wall-time=%.3f", (submission.Time/1000)*1.5),
-			"--fsize=1024",
+			"--fsize=10240",
 			fmt.Sprintf("--mem=%d", memLimit),
 			"--meta="+metaPath,
 			"--run",
@@ -198,6 +202,10 @@ func (p *Python) Run(boxId int, submission Submission) {
 		_ = isolateCmd.Run()
 
 		Compare(boxPath, &maxTime, &maxRSS, &finalResult, i, submission.UserId)
+
+		if finalResult != "Accepted" {
+			break
+		}
 	}
 
 	log.Printf("Submission %s (User %d): %s (Time: %.3fs, Memory: %dKB)",
