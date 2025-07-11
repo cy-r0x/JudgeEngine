@@ -49,6 +49,7 @@ func failOnError(err error, msg string) {
 
 func doWork(w *Worker, submission Submission, d *amqp.Delivery) {
 	defer func() {
+		exec.Command("isolate", fmt.Sprintf("--box-id=%d", w.Id), "--init").Run()
 		d.Ack(false)
 		workChannel <- *w
 	}()
@@ -72,10 +73,6 @@ func main() {
 	workChannel = make(chan Worker, 4)
 	for i := 0; i < 4; i++ {
 		workChannel <- Worker{Id: i, Status: true}
-		if err := exec.Command("isolate", fmt.Sprintf("--box-id=%d", i), "--init").Run(); err != nil {
-			log.Printf("Isolate init error: %v", err)
-			return
-		}
 	}
 
 	conn, err := amqp.Dial("amqp://guest:guest@127.0.0.1:5672/")
@@ -103,7 +100,7 @@ func main() {
 
 	go func() {
 		defer wg.Done()
-		
+
 		for d := range msgs {
 			worker := <-workChannel
 			var submission Submission
