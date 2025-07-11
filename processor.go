@@ -9,6 +9,13 @@ import (
 	"strings"
 )
 
+func ProduceVerdict(submission Submission, finalResult string, maxTime float64, maxRSS int) {
+
+	log.Printf("Submission %s (User %d): %s (Time: %.3fs, Memory: %dKB)",
+		submission.Id, submission.UserId, finalResult, maxTime, maxRSS)
+
+}
+
 func Compare(boxPath string, maxTime *float64, maxRSS *int, finalResult *string, testCase int, id int) {
 
 	metaPath := fmt.Sprintf("%s/meta.txt", boxPath)
@@ -142,9 +149,7 @@ func (p *CPP) Run(boxId int, submission Submission) {
 		}
 	}
 
-	log.Printf("Submission %s (User %d): %s (Time: %.3fs, Memory: %dKB)",
-		submission.Id, submission.UserId, finalResult, maxTime, maxRSS)
-
+	ProduceVerdict(submission, finalResult, maxTime, maxRSS)
 }
 
 // Python
@@ -208,7 +213,6 @@ func (p *Python) Run(boxId int, submission Submission) {
 		}
 	}
 
-	log.Printf("Submission %s (User %d): %s (Time: %.3fs, Memory: %dKB)",
-		submission.Id, submission.UserId, finalResult, maxTime, maxRSS)
+	ProduceVerdict(submission, finalResult, maxTime, maxRSS)
 
 }
