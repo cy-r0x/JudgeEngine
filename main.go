@@ -39,7 +39,7 @@ type Worker struct {
 	Status bool
 }
 
-var workCh chan Worker
+var workChannel chan Worker
 
 func failOnError(err error, msg string) {
 	if err != nil {
@@ -47,9 +47,10 @@ func failOnError(err error, msg string) {
 	}
 }
 
-func doWork(w *Worker, submission Submission) {
+func doWork(w *Worker, submission Submission, d *amqp.Delivery) {
 	defer func() {
-		workCh <- *w
+		d.Ack(false)
+		workChannel <- *w
 	}()
 
 	switch submission.Language {
@@ -64,12 +65,13 @@ func doWork(w *Worker, submission Submission) {
 	default:
 		log.Printf("Unsupported!")
 	}
+
 }
 
 func main() {
-	workCh = make(chan Worker, 4)
+	workChannel = make(chan Worker, 4)
 	for i := 0; i < 4; i++ {
-		workCh <- Worker{Id: i, Status: true}
+		workChannel <- Worker{Id: i, Status: true}
 		if err := exec.Command("isolate", fmt.Sprintf("--box-id=%d", i), "--init").Run(); err != nil {
 			log.Printf("Isolate init error: %v", err)
 			return
@@ -84,9 +86,13 @@ func main() {
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
-	ch.Qos(8, 0, false)
+	ch.Qos(4, 0, false)
+	args := amqp.Table{
+		"x-queue-type": "quorum",
+	}
+
 	queueName := "msgQueue"
-	q, err := ch.QueueDeclare(queueName, false, false, false, false, nil)
+	q, err := ch.QueueDeclare(queueName, true, false, false, false, args)
 	failOnError(err, "Failed to declare a queue")
 
 	msgs, err := ch.Consume(q.Name, "", false, false, false, false, nil)
@@ -94,18 +100,20 @@ func main() {
 
 	var wg sync.WaitGroup
 	wg.Add(1)
+
 	go func() {
 		defer wg.Done()
+		
 		for d := range msgs {
-			worker := <-workCh
-			d.Ack(false)
+			worker := <-workChannel
 			var submission Submission
 			if err := json.Unmarshal(d.Body, &submission); err != nil {
 				log.Printf("Raw body: %s", string(d.Body))
 				log.Printf("Invalid message body: %v", err)
 				continue
 			}
-			go doWork(&worker, submission)
+			dCopy := d
+			go doWork(&worker, submission, &dCopy)
 		}
 	}()
 
