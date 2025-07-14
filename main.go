@@ -73,6 +73,7 @@ func main() {
 	workChannel = make(chan Worker, 4)
 	for i := 0; i < 4; i++ {
 		workChannel <- Worker{Id: i, Status: true}
+		exec.Command("isolate", fmt.Sprintf("--box-id=%d", i), "--init").Run()
 	}
 
 	conn, err := amqp.Dial("amqp://guest:guest@127.0.0.1:5672/")
