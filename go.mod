@@ -1,4 +1,4 @@
-module github.com/test/test
+module github.com/judgenot0/judge-deamon
 
 go 1.24.3
 
