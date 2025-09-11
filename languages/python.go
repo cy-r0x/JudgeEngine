@@ -32,14 +32,14 @@ func (p *Python) Run(boxId int, submission structs.Submission) {
 	var maxRSS int
 	finalResult := "Accepted"
 
+	inputPath := boxPath + "in.txt"
+	expectedOutputPath := boxPath + "expOut.txt"
+	outputPath := boxPath + "out.txt"
+	metaPath := boxPath + "meta.txt"
+
 	for i, test := range submission.Testcases {
 		input := test.Input
 		output := test.Output
-
-		inputPath := boxPath + "in.txt"
-		expectedOutputPath := boxPath + "expOut.txt"
-		outputPath := boxPath + "out.txt"
-		metaPath := boxPath + "meta.txt"
 
 		os.WriteFile(inputPath, []byte(input), 0644)
 		os.WriteFile(expectedOutputPath, []byte(output), 0644)

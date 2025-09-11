@@ -40,14 +40,14 @@ func (p *CPP) Run(boxId int, submission structs.Submission) {
 	var maxRSS int
 	finalResult := "Accepted"
 
+	inputPath := filepath.Join(boxPath, "in.txt")
+	expectedOutputPath := filepath.Join(boxPath, "expOut.txt")
+	outputPath := filepath.Join(boxPath, "out.txt")
+	metaPath := filepath.Join(boxPath, "meta.txt")
+
 	for i, test := range submission.Testcases {
 		input := test.Input
 		output := test.Output
-
-		inputPath := filepath.Join(boxPath, "in.txt")
-		expectedOutputPath := filepath.Join(boxPath, "expOut.txt")
-		outputPath := filepath.Join(boxPath, "out.txt")
-		metaPath := filepath.Join(boxPath, "meta.txt")
 
 		os.WriteFile(inputPath, []byte(input), 0644)
 		os.WriteFile(expectedOutputPath, []byte(output), 0644)
@@ -62,7 +62,7 @@ func (p *CPP) Run(boxId int, submission structs.Submission) {
 			fmt.Sprintf("--wall-time=%.3f", (submission.Time/1000)*1.5),
 			"--fsize=10240",
 			fmt.Sprintf("--mem=%d", memLimit),
-			"--meta="+metaPath,
+			fmt.Sprintf("--meta=%s", metaPath),
 			"--run",
 			"--",
 			"./main",
