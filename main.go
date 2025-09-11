@@ -11,6 +11,7 @@ import (
 
 const CPU_COUNT = 8
 const QUEUE_NAME = "submissionQueue"
+const PORT = ":8888"
 
 func main() {
 	manager := worker.NewManger()
@@ -20,10 +21,12 @@ func main() {
 	wg.Add(1)
 
 	//dui tai blocking :"_) dk what to dooooooooooooooooooo
-	go cmd.Listen()
+	go cmd.Listen(PORT)
 
 	queue.InitQueue(manager)
 	go queue.StartConsume(manager)
+
+	log.Println("Server Running at " + PORT)
 	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
 
 	wg.Wait()

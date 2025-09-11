@@ -14,10 +14,9 @@ func initRoute(mux *http.ServeMux) {
 	mux.Handle("POST /submit", http.HandlerFunc(handleSubmit))
 }
 
-func Listen() {
+func Listen(port string) {
 	mux := http.NewServeMux()
 	initRoute(mux)
 
-	http.ListenAndServe(":8888", mux)
-	log.Println("Server Running at 8888")
+	http.ListenAndServe(port, mux)
 }
