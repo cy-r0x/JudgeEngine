@@ -4,53 +4,83 @@ import (
 	"encoding/json"
 	"log"
 
-	"github.com/judgenot0/judge-deamon/handlers"
-	structs "github.com/judgenot0/judge-deamon/structs"
+	"github.com/judgenot0/judge-deamon/structs"
 	"github.com/judgenot0/judge-deamon/worker"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-var msgs <-chan amqp.Delivery
-var conn *amqp.Connection
-var ch *amqp.Channel
+type Queue struct {
+	msgs      <-chan amqp.Delivery
+	conn      *amqp.Connection
+	ch        *amqp.Channel
+	queueName string
+}
 
-func InitQueue(manager *worker.Manager) {
+func NewQueue() *Queue {
+	return &Queue{}
+}
+
+func (q *Queue) InitQueue(queueName string, CPU_COUNT int) error {
+	q.queueName = queueName
+
 	var err error
-	conn, err = amqp.Dial("amqp://guest:guest@127.0.0.1:5672/")
-	handlers.FailOnError(err, "Failed to connect to RabbitMQ")
+	q.conn, err = amqp.Dial("amqp://guest:guest@127.0.0.1:5672/")
+	if err != nil {
+		log.Println("Failed to dial AMQP")
+		return err
+	}
 
-	ch, err = conn.Channel()
-	handlers.FailOnError(err, "Failed to open a channel")
+	q.ch, err = q.conn.Channel()
+	if err != nil {
+		return err
+	}
 
-	err = ch.Qos(manager.CPU_COUNT, 0, false)
-	handlers.FailOnError(err, "Failed to set QoS")
+	err = q.ch.Qos(CPU_COUNT, 0, false)
+	if err != nil {
+		return err
+	}
 
 	args := amqp.Table{
 		"x-queue-type": "quorum",
 	}
-
-	_, err = ch.QueueDeclare(manager.QueueName, true, false, false, false, args)
-	handlers.FailOnError(err, "Failed to declare a queue")
+	_, err = q.ch.QueueDeclare(q.queueName, true, false, false, false, args)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func QueueMessage(submission []byte) {
-
+func (q *Queue) QueueMessage(submission []byte) error {
+	log.Println(string(submission))
+	err := q.ch.Publish(
+		"",
+		q.queueName,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        submission,
+		},
+	)
+	return err
 }
 
-func StartConsume(manager *worker.Manager) {
+func (q *Queue) StartConsume(manager *worker.Manager) error {
 	defer func() {
-		if ch != nil {
-			ch.Close()
+		if q.ch != nil {
+			q.ch.Close()
 		}
-		if conn != nil {
-			conn.Close()
+		if q.conn != nil {
+			q.conn.Close()
 		}
 	}()
 
-	msgs, err := ch.Consume(manager.QueueName, "", false, false, false, false, nil)
-	handlers.FailOnError(err, "Failed to register a consumer")
-
-	for d := range msgs {
+	var err error
+	q.msgs, err = q.ch.Consume(q.queueName, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+	for d := range q.msgs {
 		slave := <-manager.WorkChannel
 		var submission structs.Submission
 		err := json.Unmarshal(d.Body, &submission)
@@ -64,5 +94,5 @@ func StartConsume(manager *worker.Manager) {
 
 		go manager.Work(&slave, submission, &dCopy)
 	}
-
+	return nil
 }

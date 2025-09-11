@@ -12,7 +12,6 @@ import (
 
 type Manager struct {
 	WorkChannel chan structs.Worker
-	QueueName   string
 	CPU_COUNT   int
 }
 
@@ -22,7 +21,6 @@ func NewManger() *Manager {
 
 func (mngr *Manager) With(queueName string, workerCount int) {
 	mngr.WorkChannel = make(chan structs.Worker, workerCount)
-	mngr.QueueName = queueName
 	mngr.CPU_COUNT = workerCount
 
 	for i := 0; i < workerCount; i++ {
