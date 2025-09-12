@@ -6,7 +6,7 @@ import (
 
 	"github.com/judgenot0/judge-deamon/cmd"
 	"github.com/judgenot0/judge-deamon/queue"
-	"github.com/judgenot0/judge-deamon/worker"
+	"github.com/judgenot0/judge-deamon/scheduler"
 )
 
 const CPU_COUNT = 8
@@ -14,11 +14,13 @@ const QUEUE_NAME = "submissionQueue"
 const PORT = ":8888"
 
 func main() {
-	manager := worker.NewManger()
-	manager.With(QUEUE_NAME, CPU_COUNT)
+	scheduler := scheduler.NewScheduler()
+	scheduler.With(CPU_COUNT)
 
-	queue_manager := queue.NewQueue()
-	err := queue_manager.InitQueue(QUEUE_NAME, CPU_COUNT)
+	manager := queue.NewQueue()
+	err := manager.InitQueue(QUEUE_NAME, CPU_COUNT)
+
+	server := cmd.NewServer()
 
 	if err != nil {
 		log.Println(err)
@@ -30,15 +32,16 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		cmd.Listen(PORT, queue_manager)
+		server.Listen(PORT, manager)
 	}()
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err := queue_manager.StartConsume(manager)
+		err := manager.StartConsume(scheduler)
 		if err != nil {
 			log.Println(err)
+			return
 		}
 	}()
 

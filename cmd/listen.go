@@ -8,9 +8,15 @@ import (
 	"github.com/judgenot0/judge-deamon/queue"
 )
 
-var queue_manager *queue.Queue
+type Server struct {
+	manager *queue.Queue
+}
 
-func handleSubmit(w http.ResponseWriter, r *http.Request) {
+func NewServer() *Server {
+	return &Server{}
+}
+
+func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading request body: %v", err)
@@ -22,21 +28,21 @@ func handleSubmit(w http.ResponseWriter, r *http.Request) {
 
 	log.Println(body)
 
-	err = queue_manager.QueueMessage(body)
+	err = s.manager.QueueMessage(body)
 	if err != nil {
 		return
 	}
 	w.WriteHeader(200)
 }
 
-func initRoute(mux *http.ServeMux) {
-	mux.Handle("POST /submit", http.HandlerFunc(handleSubmit))
+func (s *Server) initRoute(mux *http.ServeMux) {
+	mux.Handle("POST /submit", http.HandlerFunc(s.handleSubmit))
 }
 
-func Listen(port string, queue *queue.Queue) {
-	queue_manager = queue
+func (s *Server) Listen(port string, queue *queue.Queue) {
+	s.manager = queue
 	mux := http.NewServeMux()
-	initRoute(mux)
+	s.initRoute(mux)
 
 	http.ListenAndServe(port, mux)
 }

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"log"
 
+	"github.com/judgenot0/judge-deamon/scheduler"
 	"github.com/judgenot0/judge-deamon/structs"
-	"github.com/judgenot0/judge-deamon/worker"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -26,7 +26,6 @@ func (q *Queue) InitQueue(queueName string, CPU_COUNT int) error {
 	var err error
 	q.conn, err = amqp.Dial("amqp://guest:guest@127.0.0.1:5672/")
 	if err != nil {
-		log.Println("Failed to dial AMQP")
 		return err
 	}
 
@@ -65,7 +64,7 @@ func (q *Queue) QueueMessage(submission []byte) error {
 	return err
 }
 
-func (q *Queue) StartConsume(manager *worker.Manager) error {
+func (q *Queue) StartConsume(scheduler *scheduler.Scheduler) error {
 	defer func() {
 		if q.ch != nil {
 			q.ch.Close()
@@ -81,7 +80,7 @@ func (q *Queue) StartConsume(manager *worker.Manager) error {
 		return err
 	}
 	for d := range q.msgs {
-		slave := <-manager.WorkChannel
+		slave := <-scheduler.WorkChannel
 		var submission structs.Submission
 		err := json.Unmarshal(d.Body, &submission)
 
@@ -92,7 +91,7 @@ func (q *Queue) StartConsume(manager *worker.Manager) error {
 		}
 		dCopy := d
 
-		go manager.Work(&slave, submission, &dCopy)
+		go scheduler.Work(&slave, submission, &dCopy)
 	}
 	return nil
 }

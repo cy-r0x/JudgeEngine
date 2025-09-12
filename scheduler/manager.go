@@ -1,4 +1,4 @@
-package worker
+package scheduler
 
 import (
 	"fmt"
@@ -10,16 +10,16 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type Manager struct {
+type Scheduler struct {
 	WorkChannel chan structs.Worker
 	CPU_COUNT   int
 }
 
-func NewManger() *Manager {
-	return &Manager{}
+func NewScheduler() *Scheduler {
+	return &Scheduler{}
 }
 
-func (mngr *Manager) With(queueName string, workerCount int) {
+func (mngr *Scheduler) With(workerCount int) {
 	mngr.WorkChannel = make(chan structs.Worker, workerCount)
 	mngr.CPU_COUNT = workerCount
 
@@ -35,7 +35,7 @@ func (mngr *Manager) With(queueName string, workerCount int) {
 	}
 }
 
-func (mngr *Manager) Work(w *structs.Worker, submission structs.Submission, d *amqp.Delivery) {
+func (mngr *Scheduler) Work(w *structs.Worker, submission structs.Submission, d *amqp.Delivery) {
 	defer func() {
 		exec.Command("isolate", fmt.Sprintf("--box-id=%d", w.Id), "--init").Run()
 		d.Ack(false)
