@@ -89,9 +89,7 @@ func (q *Queue) StartConsume(scheduler *scheduler.Scheduler) error {
 			log.Printf("Invalid message body: %v", err)
 			continue
 		}
-		dCopy := d
-
-		go scheduler.Work(&slave, submission, &dCopy)
+		go scheduler.Work(slave, submission, d)
 	}
 	return nil
 }

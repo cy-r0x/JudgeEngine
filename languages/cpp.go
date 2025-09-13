@@ -14,7 +14,7 @@ import (
 type CPP struct {
 }
 
-func (p *CPP) Compile(boxId int, submission structs.Submission) {
+func (p *CPP) Compile(boxId int, submission *structs.Submission) {
 	code := submission.Code
 
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
@@ -33,7 +33,7 @@ func (p *CPP) Compile(boxId int, submission structs.Submission) {
 	}
 }
 
-func (p *CPP) Run(boxId int, submission structs.Submission) {
+func (p *CPP) Run(boxId int, submission *structs.Submission) {
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
 	var maxTime float64

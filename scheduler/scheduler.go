@@ -35,22 +35,22 @@ func (mngr *Scheduler) With(workerCount int) {
 	}
 }
 
-func (mngr *Scheduler) Work(w *structs.Worker, submission structs.Submission, d *amqp.Delivery) {
+func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d amqp.Delivery) {
 	defer func() {
 		exec.Command("isolate", fmt.Sprintf("--box-id=%d", w.Id), "--init").Run()
 		d.Ack(false)
-		mngr.WorkChannel <- *w
+		mngr.WorkChannel <- w
 	}()
 
 	switch submission.Language {
 	case "cpp":
 		var cpp languages.CPP
-		cpp.Compile(w.Id, submission)
-		cpp.Run(w.Id, submission)
+		cpp.Compile(w.Id, &submission)
+		cpp.Run(w.Id, &submission)
 	case "py":
 		var py languages.Python
-		py.Compile(w.Id, submission)
-		py.Run(w.Id, submission)
+		py.Compile(w.Id, &submission)
+		py.Run(w.Id, &submission)
 	default:
 		log.Printf("Unsupported!")
 	}

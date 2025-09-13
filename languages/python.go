@@ -13,7 +13,7 @@ import (
 type Python struct {
 }
 
-func (p *Python) Compile(boxId int, submission structs.Submission) {
+func (p *Python) Compile(boxId int, submission *structs.Submission) {
 	code := submission.Code
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
@@ -24,7 +24,7 @@ func (p *Python) Compile(boxId int, submission structs.Submission) {
 	}
 }
 
-func (p *Python) Run(boxId int, submission structs.Submission) {
+func (p *Python) Run(boxId int, submission *structs.Submission) {
 
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
