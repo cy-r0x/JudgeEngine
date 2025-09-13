@@ -69,7 +69,7 @@ func (p *CPP) Run(boxId int, submission structs.Submission) {
 		)
 		_ = isolateCmd.Run()
 
-		handlers.Compare(boxPath, &maxTime, &maxRSS, &finalResult, i, submission.UserId)
+		handlers.Compare(boxPath, &maxTime, &maxRSS, &finalResult, i)
 
 		if finalResult != "Accepted" {
 			break

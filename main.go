@@ -14,13 +14,8 @@ const QUEUE_NAME = "submissionQueue"
 const PORT = ":8888"
 
 func main() {
-	scheduler := scheduler.NewScheduler()
-	scheduler.With(CPU_COUNT)
-
 	manager := queue.NewQueue()
 	err := manager.InitQueue(QUEUE_NAME, CPU_COUNT)
-
-	server := cmd.NewServer()
 
 	if err != nil {
 		log.Println(err)
@@ -32,12 +27,9 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		server.Listen(PORT, manager)
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+		scheduler := scheduler.NewScheduler()
+		scheduler.With(CPU_COUNT)
+		log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
 		err := manager.StartConsume(scheduler)
 		if err != nil {
 			log.Println(err)
@@ -45,8 +37,13 @@ func main() {
 		}
 	}()
 
-	log.Println("Server Running at " + PORT)
-	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		server := cmd.NewServer(manager)
+		log.Println("Server Running at " + PORT)
+		server.Listen(PORT)
+	}()
 
 	wg.Wait()
 }

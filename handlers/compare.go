@@ -11,7 +11,7 @@ import (
 	structs "github.com/judgenot0/judge-deamon/structs"
 )
 
-func Compare(boxPath string, maxTime *float64, maxRSS *int, finalResult *string, testCase int, id int) {
+func Compare(boxPath string, maxTime *float64, maxRSS *int, finalResult *string, testCase int) {
 
 	metaPath := fmt.Sprintf("%s/meta.txt", boxPath)
 	outputPath := fmt.Sprintf("%s/out.txt", boxPath)
@@ -63,14 +63,13 @@ func Compare(boxPath string, maxTime *float64, maxRSS *int, finalResult *string,
 		case "XX":
 			*finalResult = "Internal Error"
 		}
-		log.Printf("Test case %d failed: %s for submission %d", testCase, *finalResult, id)
+		*finalResult = fmt.Sprintf("%s on testcase %d", *finalResult, testCase)
 		return
 	}
 
 	diffCmd := exec.Command("diff", "-Z", "-B", outputPath, expectedOutputPath)
 	if _, err := diffCmd.CombinedOutput(); err != nil {
 		*finalResult = "Wrong Answer"
-		return
 	}
 
 }

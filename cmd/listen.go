@@ -12,8 +12,10 @@ type Server struct {
 	manager *queue.Queue
 }
 
-func NewServer() *Server {
-	return &Server{}
+func NewServer(queue *queue.Queue) *Server {
+	return &Server{
+		manager: queue,
+	}
 }
 
 func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
@@ -39,10 +41,8 @@ func (s *Server) initRoute(mux *http.ServeMux) {
 	mux.Handle("POST /submit", http.HandlerFunc(s.handleSubmit))
 }
 
-func (s *Server) Listen(port string, queue *queue.Queue) {
-	s.manager = queue
+func (s *Server) Listen(port string) {
 	mux := http.NewServeMux()
 	s.initRoute(mux)
-
 	http.ListenAndServe(port, mux)
 }
