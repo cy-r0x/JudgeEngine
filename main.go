@@ -5,17 +5,16 @@ import (
 	"sync"
 
 	"github.com/judgenot0/judge-deamon/cmd"
+	"github.com/judgenot0/judge-deamon/config"
 	"github.com/judgenot0/judge-deamon/queue"
 	"github.com/judgenot0/judge-deamon/scheduler"
 )
 
-const CPU_COUNT = 8
-const QUEUE_NAME = "submissionQueue"
-const PORT = ":8888"
-
 func main() {
+
+	config := config.GetConfig()
 	manager := queue.NewQueue()
-	err := manager.InitQueue(QUEUE_NAME, CPU_COUNT)
+	err := manager.InitQueue(config.QueueName, config.WorkerCount)
 
 	if err != nil {
 		log.Println(err)
@@ -28,7 +27,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		scheduler := scheduler.NewScheduler()
-		scheduler.With(CPU_COUNT)
+		scheduler.With(config.WorkerCount)
 		log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
 		err := manager.StartConsume(scheduler)
 		if err != nil {
@@ -41,8 +40,8 @@ func main() {
 	go func() {
 		defer wg.Done()
 		server := cmd.NewServer(manager)
-		log.Println("Server Running at " + PORT)
-		server.Listen(PORT)
+		log.Println("Server Running at " + config.HttpPort)
+		server.Listen(config.HttpPort)
 	}()
 
 	wg.Wait()

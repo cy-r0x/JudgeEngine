@@ -26,16 +26,19 @@ func (q *Queue) InitQueue(queueName string, CPU_COUNT int) error {
 	var err error
 	q.conn, err = amqp.Dial("amqp://guest:guest@127.0.0.1:5672/")
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
 	q.ch, err = q.conn.Channel()
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
 	err = q.ch.Qos(CPU_COUNT, 0, false)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 
@@ -44,14 +47,22 @@ func (q *Queue) InitQueue(queueName string, CPU_COUNT int) error {
 	}
 	_, err = q.ch.QueueDeclare(q.queueName, true, false, false, false, args)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 	return nil
 }
 
 func (q *Queue) QueueMessage(submission []byte) error {
-	log.Println(string(submission))
-	err := q.ch.Publish(
+	var newSubmission structs.Submission
+	var err error
+	err = json.Unmarshal(submission, &newSubmission)
+	if err != nil {
+		log.Fatalln("WRONG SUBMISSION")
+		return err
+	}
+	log.Println("Submission:", newSubmission.Id)
+	err = q.ch.Publish(
 		"",
 		q.queueName,
 		false,
@@ -77,13 +88,13 @@ func (q *Queue) StartConsume(scheduler *scheduler.Scheduler) error {
 	var err error
 	q.msgs, err = q.ch.Consume(q.queueName, "", false, false, false, false, nil)
 	if err != nil {
+		log.Println(err)
 		return err
 	}
 	for d := range q.msgs {
 		slave := <-scheduler.WorkChannel
 		var submission structs.Submission
 		err := json.Unmarshal(d.Body, &submission)
-
 		if err != nil {
 			log.Printf("Raw body: %s", string(d.Body))
 			log.Printf("Invalid message body: %v", err)

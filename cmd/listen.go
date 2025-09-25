@@ -28,10 +28,9 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 
 	defer r.Body.Close()
 
-	log.Println(body)
-
 	err = s.manager.QueueMessage(body)
 	if err != nil {
+		log.Println(err)
 		return
 	}
 	w.WriteHeader(200)
