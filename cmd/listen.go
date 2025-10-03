@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/judgenot0/judge-deamon/queue"
+	"github.com/judgenot0/judge-deamon/utils"
 )
 
 type Server struct {
@@ -19,21 +19,20 @@ func NewServer(queue *queue.Queue) *Server {
 }
 
 func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.Printf("Error reading request body: %v", err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
 	defer r.Body.Close()
 
-	err = s.manager.QueueMessage(body)
+	submission, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Println(err)
+		utils.SendResponse(w, http.StatusBadRequest, "Failed to read request body")
 		return
 	}
-	w.WriteHeader(200)
+
+	err = s.manager.QueueMessage(submission)
+	if err != nil {
+		utils.SendResponse(w, http.StatusBadRequest, "Failed to Queue submission")
+		return
+	}
+	utils.SendResponse(w, http.StatusOK, "")
 }
 
 func (s *Server) initRoute(mux *http.ServeMux) {

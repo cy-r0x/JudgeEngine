@@ -1,11 +1,15 @@
 package structs
 
+type Testcase struct {
+	Input          string `json:"input" db:"input"`
+	ExpectedOutput string `json:"expected_output" db:"expected_output"`
+}
+
 type Submission struct {
-	Id        string     `json:"id"`
-	Language  string     `json:"language"`
-	Time      float32    `json:"timeLimit"`
-	Memory    int        `json:"memoryLimit"`
-	Code      string     `json:"code"`
-	Testcases []Testcase `json:"testCases"`
-	UserId    int        `json:"userId"`
+	SubmissionId int64      `json:"submission_id"`
+	Language     string     `json:"language"`
+	SourceCode   string     `json:"source_code"`
+	Testcases    []Testcase `json:"testcases"`
+	Timelimit    float32    `json:"time_limit"`
+	MemoryLimit  float32    `json:"memory_limit"`
 }

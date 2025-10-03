@@ -24,7 +24,7 @@ func (q *Queue) InitQueue(queueName string, CPU_COUNT int) error {
 	q.queueName = queueName
 
 	var err error
-	q.conn, err = amqp.Dial("amqp://guest:guest@127.0.0.1:5672/")
+	q.conn, err = amqp.Dial("amqp://guest:guest@localhost:5672/")
 	if err != nil {
 		log.Println(err)
 		return err
@@ -54,15 +54,7 @@ func (q *Queue) InitQueue(queueName string, CPU_COUNT int) error {
 }
 
 func (q *Queue) QueueMessage(submission []byte) error {
-	var newSubmission structs.Submission
-	var err error
-	err = json.Unmarshal(submission, &newSubmission)
-	if err != nil {
-		log.Fatalln("WRONG SUBMISSION")
-		return err
-	}
-	log.Println("Submission:", newSubmission.Id)
-	err = q.ch.Publish(
+	err := q.ch.Publish(
 		"",
 		q.queueName,
 		false,
@@ -91,6 +83,7 @@ func (q *Queue) StartConsume(scheduler *scheduler.Scheduler) error {
 		log.Println(err)
 		return err
 	}
+
 	for d := range q.msgs {
 		slave := <-scheduler.WorkChannel
 		var submission structs.Submission
@@ -102,5 +95,6 @@ func (q *Queue) StartConsume(scheduler *scheduler.Scheduler) error {
 		}
 		go scheduler.Work(slave, submission, d)
 	}
+
 	return nil
 }

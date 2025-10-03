@@ -45,12 +45,14 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 	switch submission.Language {
 	case "cpp":
 		var cpp languages.CPP
-		cpp.Compile(w.Id, &submission)
-		cpp.Run(w.Id, &submission)
+		if err := cpp.Compile(w.Id, &submission); err == nil {
+			cpp.Run(w.Id, &submission)
+		}
 	case "py":
 		var py languages.Python
-		py.Compile(w.Id, &submission)
-		py.Run(w.Id, &submission)
+		if err := py.Compile(w.Id, &submission); err == nil {
+			py.Run(w.Id, &submission)
+		}
 	default:
 		log.Printf("Unsupported!")
 	}

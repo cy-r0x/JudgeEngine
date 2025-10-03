@@ -7,15 +7,22 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-
-	structs "github.com/judgenot0/judge-deamon/structs"
 )
 
-func Compare(boxPath string, maxTime *float64, maxRSS *int, finalResult *string, testCase int) {
+type Meta struct {
+	Status    string
+	Message   string
+	Killed    int
+	Time      float32
+	Time_Wall float32
+	Max_RSS   float32
+}
 
-	metaPath := fmt.Sprintf("%s/meta.txt", boxPath)
-	outputPath := fmt.Sprintf("%s/out.txt", boxPath)
-	expectedOutputPath := fmt.Sprintf("%s/expOut.txt", boxPath)
+func Compare(boxPath string, maxTime *float32, maxRSS *float32, finalResult *string, testCase int) {
+
+	metaPath := fmt.Sprintf("%smeta.txt", boxPath)
+	outputPath := fmt.Sprintf("%sout.txt", boxPath)
+	expectedOutputPath := fmt.Sprintf("%sexpOut.txt", boxPath)
 
 	metaContent, err := os.ReadFile(metaPath)
 	if err != nil {
@@ -23,7 +30,7 @@ func Compare(boxPath string, maxTime *float64, maxRSS *int, finalResult *string,
 		return
 	}
 
-	var meta structs.Meta
+	var meta Meta
 	for line := range strings.SplitSeq(string(metaContent), "\n") {
 		parts := strings.SplitN(line, ":", 2)
 		if len(parts) != 2 {
@@ -37,11 +44,17 @@ func Compare(boxPath string, maxTime *float64, maxRSS *int, finalResult *string,
 		case "killed":
 			meta.Killed, _ = strconv.Atoi(parts[1])
 		case "time":
-			meta.Time, _ = strconv.ParseFloat(parts[1], 64)
+			if v, err := strconv.ParseFloat(parts[1], 32); err == nil {
+				meta.Time = float32(v)
+			}
 		case "time-wall":
-			meta.Time_Wall, _ = strconv.ParseFloat(parts[1], 64)
+			if v, err := strconv.ParseFloat(parts[1], 32); err == nil {
+				meta.Time_Wall = float32(v)
+			}
 		case "max-rss":
-			meta.Max_RSS, _ = strconv.Atoi(parts[1])
+			if v, err := strconv.ParseFloat(parts[1], 32); err == nil {
+				meta.Max_RSS = float32(v)
+			}
 		}
 	}
 
@@ -63,7 +76,6 @@ func Compare(boxPath string, maxTime *float64, maxRSS *int, finalResult *string,
 		case "XX":
 			*finalResult = "Internal Error"
 		}
-		*finalResult = fmt.Sprintf("%s on testcase %d", *finalResult, testCase)
 		return
 	}
 
