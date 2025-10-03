@@ -16,6 +16,7 @@ import (
 
 type EngineData struct {
 	SubmissionId    int64    `json:"submission_id"`
+	ProblemId       int64    `json:"problem_id"`
 	Verdict         string   `json:"verdict"`
 	ExecutionTime   *float32 `json:"execution_time"`
 	ExecutionMemory *float32 `json:"execution_memory"`
@@ -27,9 +28,10 @@ type EnginePayload struct {
 	AccessToken string      `json:"access_token"`
 }
 
-func GenerateToken(submissionId int64, verdict string, execTime, execMem *float32, secret string) (*EnginePayload, error) {
+func GenerateToken(submissionId int64, problemId int64, verdict string, execTime, execMem *float32, secret string) (*EnginePayload, error) {
 	data := &EngineData{
 		SubmissionId:    submissionId,
+		ProblemId:       problemId,
 		Verdict:         verdict,
 		ExecutionTime:   execTime,
 		ExecutionMemory: execMem,
@@ -53,10 +55,6 @@ func GenerateToken(submissionId int64, verdict string, execTime, execMem *float3
 }
 
 func ProduceVerdict(submission *structs.Submission, finalResult string, maxTime, maxRSS *float32) {
-	log.Println(submission.SubmissionId, finalResult, maxTime, maxRSS)
-
-	// TODO: Add API Call to update DB
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -66,6 +64,7 @@ func ProduceVerdict(submission *structs.Submission, finalResult string, maxTime,
 		// Generate signed token payload
 		payload, err := GenerateToken(
 			submission.SubmissionId,
+			submission.ProblemId,
 			finalResult,
 			maxTime,
 			maxRSS,
@@ -100,7 +99,7 @@ func ProduceVerdict(submission *structs.Submission, finalResult string, maxTime,
 		}
 		defer resp.Body.Close()
 
-		log.Println("PUT response status:", resp.Status)
+		log.Println("PUT response status:", resp.Status, resp.Body)
 	}()
 
 	wg.Wait()

@@ -30,7 +30,7 @@ func (p *CPP) Compile(boxId int, submission *structs.Submission) error {
 
 	if _, err := exec.Command("g++", "-std=c++23", cppFilePath, "-o", outputBinary).CombinedOutput(); err != nil {
 		log.Printf("Compilation error: %v", err)
-		handlers.ProduceVerdict(submission, "Comiplation Error", nil, nil)
+		handlers.ProduceVerdict(submission, "ce", nil, nil)
 		return errors.New("Error")
 	}
 	return nil
@@ -41,7 +41,7 @@ func (p *CPP) Run(boxId int, submission *structs.Submission) {
 
 	var maxTime float32
 	var maxRSS float32
-	finalResult := "Accepted"
+	finalResult := "ac"
 
 	inputPath := filepath.Join(boxPath, "in.txt")
 	expectedOutputPath := filepath.Join(boxPath, "expOut.txt")
@@ -76,7 +76,7 @@ func (p *CPP) Run(boxId int, submission *structs.Submission) {
 
 		handlers.Compare(boxPath, &maxTime, &maxRSS, &finalResult, i)
 
-		if finalResult != "Accepted" {
+		if finalResult != "ac" {
 			break
 		}
 	}

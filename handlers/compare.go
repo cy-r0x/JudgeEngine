@@ -68,20 +68,20 @@ func Compare(boxPath string, maxTime *float32, maxRSS *float32, finalResult *str
 	if meta.Status != "" {
 		switch meta.Status {
 		case "RE":
-			*finalResult = "Runtime Error"
+			*finalResult = "re" //runtime error
 		case "SG":
-			*finalResult = "Runtime Error (Signal)"
+			*finalResult = "re" //runtime error
 		case "TO":
-			*finalResult = "Time Limit Exceeded"
+			*finalResult = "tle" //time limit exceeded
 		case "XX":
-			*finalResult = "Internal Error"
+			*finalResult = "ie" //internal error
 		}
 		return
 	}
 
 	diffCmd := exec.Command("diff", "-Z", "-B", outputPath, expectedOutputPath)
 	if _, err := diffCmd.CombinedOutput(); err != nil {
-		*finalResult = "Wrong Answer"
+		*finalResult = "wa" //Wrong Answer
 	}
 
 }
