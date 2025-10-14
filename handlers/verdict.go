@@ -68,7 +68,7 @@ func ProduceVerdict(submission *structs.Submission, finalResult string, maxTime,
 			finalResult,
 			maxTime,
 			maxRSS,
-			"your-judge-secrect",
+			"your-judge-secret",
 		)
 		if err != nil {
 			log.Println("Error generating token:", err)
@@ -83,7 +83,7 @@ func ProduceVerdict(submission *structs.Submission, finalResult string, maxTime,
 		}
 
 		// Create PUT request
-		req, err := http.NewRequest(http.MethodPut, "http://172.21.112.1:8000/api/submissions", bytes.NewBuffer(jsonData))
+		req, err := http.NewRequest(http.MethodPut, "http://localhost:8000/api/submissions", bytes.NewBuffer(jsonData))
 		if err != nil {
 			log.Println("Error creating PUT request:", err)
 			return

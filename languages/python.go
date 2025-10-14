@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/judgenot0/judge-deamon/handlers"
 	"github.com/judgenot0/judge-deamon/structs"
@@ -18,7 +19,7 @@ func (p *Python) Compile(boxId int, submission *structs.Submission) error {
 	code := submission.SourceCode
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
-	pyFilePath := boxPath + "main.py"
+	pyFilePath := filepath.Join(boxPath, "main.py")
 	if err := os.WriteFile(pyFilePath, []byte(code), 0644); err != nil {
 		log.Printf("Error writing code to file: %v", err)
 		return errors.New("Error")
@@ -32,14 +33,17 @@ func (p *Python) Run(boxId int, submission *structs.Submission) {
 
 	var maxTime float32
 	var maxRSS float32
-	finalResult := "Accepted"
+	finalResult := "ac"
 
-	inputPath := boxPath + "in.txt"
-	expectedOutputPath := boxPath + "expOut.txt"
-	outputPath := boxPath + "out.txt"
-	metaPath := boxPath + "meta.txt"
+	inputPath := filepath.Join(boxPath, "in.txt")
+	expectedOutputPath := filepath.Join(boxPath, "expOut.txt")
+	outputPath := filepath.Join(boxPath, "out.txt")
+	metaPath := filepath.Join(boxPath, "meta.txt")
+
+	memLimit := submission.MemoryLimit * 1024
 
 	for i, test := range submission.Testcases {
+
 		input := test.Input
 		output := test.ExpectedOutput
 
@@ -47,7 +51,6 @@ func (p *Python) Run(boxId int, submission *structs.Submission) {
 		os.WriteFile(expectedOutputPath, []byte(output), 0644)
 		os.WriteFile(outputPath, []byte(""), 0644)
 
-		memLimit := submission.MemoryLimit * 1024
 		isolateCmd := exec.Command("isolate",
 			fmt.Sprintf("--box-id=%d", boxId),
 			"--stdin=in.txt",
@@ -55,7 +58,7 @@ func (p *Python) Run(boxId int, submission *structs.Submission) {
 			fmt.Sprintf("--time=%.3f", submission.Timelimit),
 			fmt.Sprintf("--wall-time=%.3f", (submission.Timelimit)*1.5),
 			"--fsize=10240",
-			fmt.Sprintf("--mem=%f", memLimit),
+			fmt.Sprintf("--mem=%d", int(memLimit)),
 			"--meta="+metaPath,
 			"--run",
 			"--",
