@@ -43,28 +43,29 @@ func (s *Server) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 	utils.SendResponse(w, http.StatusOK, "")
 }
-func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) structs.Verdict {
-	var Verdict structs.Verdict
+
+func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) string {
+	var verdict structs.Verdict
 	var err error
 	switch runReq.Language {
 	case "cpp":
 		var cpp languages.CPP
-		Verdict, err = cpp.Compile(boxId, runReq)
+		verdict, err = cpp.Compile(boxId, runReq)
 		if err != nil {
-			if Verdict.Result == "ce" {
-				return Verdict
+			if verdict.Result == "ce" {
+				return verdict.Result
 			} else {
 				log.Println(err)
 			}
 		} else {
-			Verdict = cpp.Run(boxId, runReq, handler)
+			verdict = cpp.Run(boxId, runReq, handler)
 		}
 	case "python":
 	default:
 		log.Printf("Unsupported!")
 	}
 	// more to go
-	return Verdict
+	return verdict.Result
 }
 
 func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +79,7 @@ func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var wg sync.WaitGroup
+
 	wg.Add(1)
 	go func() {
 		defer func() {
@@ -88,16 +90,23 @@ func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
 			s.scheduler.WorkChannel <- slave
 		}()
 		verdict := run(slave.Id, &runReq, s.scheduler.Handler)
-		utils.SendResponse(w, http.StatusOK, verdict)
+
+		utils.SendResponse(w, http.StatusOK, struct {
+			Result string `json:"result"`
+		}{
+			Result: verdict,
+		})
+
 	}()
+
 	wg.Wait()
 }
 
 func (s *Server) hudai(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json")
 	if r.Method == "OPTIONS" {
 		utils.SendResponse(w, http.StatusNoContent, "")
 		return
