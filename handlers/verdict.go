@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -54,7 +55,7 @@ func GenerateToken(submissionId int64, problemId int64, verdict string, execTime
 	}, nil
 }
 
-func ProduceVerdict(submission *structs.Submission, finalResult string, maxTime, maxRSS *float32) {
+func (h *Handler) ProduceVerdict(submission *structs.Submission, finalResult string, maxTime, maxRSS *float32) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -68,7 +69,7 @@ func ProduceVerdict(submission *structs.Submission, finalResult string, maxTime,
 			finalResult,
 			maxTime,
 			maxRSS,
-			"your-judge-secret",
+			h.Config.EngineKey,
 		)
 		if err != nil {
 			log.Println("Error generating token:", err)
@@ -83,7 +84,7 @@ func ProduceVerdict(submission *structs.Submission, finalResult string, maxTime,
 		}
 
 		// Create PUT request
-		req, err := http.NewRequest(http.MethodPut, "http://localhost:8000/api/submissions", bytes.NewBuffer(jsonData))
+		req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/%s", h.Config.ServerEndpoint, "api/submissions"), bytes.NewBuffer(jsonData))
 		if err != nil {
 			log.Println("Error creating PUT request:", err)
 			return

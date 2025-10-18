@@ -6,6 +6,7 @@ import (
 
 	"github.com/judgenot0/judge-deamon/cmd"
 	"github.com/judgenot0/judge-deamon/config"
+	"github.com/judgenot0/judge-deamon/handlers"
 	"github.com/judgenot0/judge-deamon/queue"
 	"github.com/judgenot0/judge-deamon/scheduler"
 )
@@ -14,6 +15,7 @@ func main() {
 
 	config := config.GetConfig()
 	manager := queue.NewQueue()
+	handler := handlers.NewHandler(config)
 	err := manager.InitQueue(config.QueueName, config.WorkerCount)
 
 	if err != nil {
@@ -26,7 +28,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		scheduler := scheduler.NewScheduler()
+		scheduler := scheduler.NewScheduler(handler)
 		scheduler.With(config.WorkerCount)
 		log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
 		err := manager.StartConsume(scheduler)

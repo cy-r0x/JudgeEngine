@@ -9,15 +9,17 @@ import (
 )
 
 type Config struct {
-	WorkerCount int
-	QueueName   string
-	HttpPort    string
+	WorkerCount    int
+	QueueName      string
+	HttpPort       string
+	EngineKey      string
+	ServerEndpoint string
 }
 
 func loadConfig() Config {
 	err := env.Load()
 	if err != nil {
-		log.Fatalln("Env is not correct")
+		log.Fatalln(".env not found")
 	}
 
 	var config Config
@@ -42,9 +44,22 @@ func loadConfig() Config {
 		log.Println("HTTP_PORT not set, using default: 8000")
 	}
 
+	config.EngineKey = os.Getenv("ENGINE_KEY")
+	if config.EngineKey == "" {
+		log.Println("Engine Key not set")
+		os.Exit(1)
+	}
+
+	config.ServerEndpoint = os.Getenv("SERVER_ENDPOINT")
+	if config.ServerEndpoint == "" {
+		log.Println("Server Endpoint  not set")
+		os.Exit(1)
+	}
+
 	return config
 }
 
-func GetConfig() Config {
-	return loadConfig()
+func GetConfig() *Config {
+	config := loadConfig()
+	return &config
 }

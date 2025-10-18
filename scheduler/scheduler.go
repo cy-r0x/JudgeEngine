@@ -5,6 +5,7 @@ import (
 	"log"
 	"os/exec"
 
+	"github.com/judgenot0/judge-deamon/handlers"
 	"github.com/judgenot0/judge-deamon/languages"
 	"github.com/judgenot0/judge-deamon/structs"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -13,10 +14,13 @@ import (
 type Scheduler struct {
 	WorkChannel chan structs.Worker
 	CPU_COUNT   int
+	Handler     *handlers.Handler
 }
 
-func NewScheduler() *Scheduler {
-	return &Scheduler{}
+func NewScheduler(handler *handlers.Handler) *Scheduler {
+	return &Scheduler{
+		Handler: handler,
+	}
 }
 
 func (mngr *Scheduler) With(workerCount int) {
@@ -45,13 +49,13 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 	switch submission.Language {
 	case "cpp":
 		var cpp languages.CPP
-		if err := cpp.Compile(w.Id, &submission); err == nil {
-			cpp.Run(w.Id, &submission)
+		if err := cpp.Compile(w.Id, &submission, mngr.Handler); err == nil {
+			cpp.Run(w.Id, &submission, mngr.Handler)
 		}
 	case "python":
 		var py languages.Python
-		if err := py.Compile(w.Id, &submission); err == nil {
-			py.Run(w.Id, &submission)
+		if err := py.Compile(w.Id, &submission, mngr.Handler); err == nil {
+			py.Run(w.Id, &submission, mngr.Handler)
 		}
 	default:
 		log.Printf("Unsupported!")

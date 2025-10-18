@@ -18,7 +18,7 @@ type Meta struct {
 	Max_RSS   float32
 }
 
-func Compare(boxPath string, maxTime *float32, maxRSS *float32, finalResult *string, testCase int) {
+func (h *Handler) Compare(boxPath string, maxTime *float32, maxRSS *float32, finalResult *string, testCase int) {
 
 	metaPath := fmt.Sprintf("%smeta.txt", boxPath)
 	outputPath := fmt.Sprintf("%sout.txt", boxPath)

@@ -15,7 +15,7 @@ import (
 type Python struct {
 }
 
-func (p *Python) Compile(boxId int, submission *structs.Submission) error {
+func (p *Python) Compile(boxId int, submission *structs.Submission, handler *handlers.Handler) error {
 	code := submission.SourceCode
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
@@ -27,7 +27,7 @@ func (p *Python) Compile(boxId int, submission *structs.Submission) error {
 	return nil
 }
 
-func (p *Python) Run(boxId int, submission *structs.Submission) {
+func (p *Python) Run(boxId int, submission *structs.Submission, handler *handlers.Handler) {
 
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
@@ -67,13 +67,13 @@ func (p *Python) Run(boxId int, submission *structs.Submission) {
 		)
 		_ = isolateCmd.Run()
 
-		handlers.Compare(boxPath, &maxTime, &maxRSS, &finalResult, i)
+		handler.Compare(boxPath, &maxTime, &maxRSS, &finalResult, i)
 
 		if finalResult != "Accepted" {
 			break
 		}
 	}
 
-	handlers.ProduceVerdict(submission, finalResult, &maxTime, &maxRSS)
+	handler.ProduceVerdict(submission, finalResult, &maxTime, &maxRSS)
 
 }

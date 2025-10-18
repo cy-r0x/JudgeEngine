@@ -15,7 +15,7 @@ import (
 type CPP struct {
 }
 
-func (p *CPP) Compile(boxId int, submission *structs.Submission) error {
+func (p *CPP) Compile(boxId int, submission *structs.Submission, handler *handlers.Handler) error {
 	code := submission.SourceCode
 
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
@@ -30,13 +30,13 @@ func (p *CPP) Compile(boxId int, submission *structs.Submission) error {
 
 	if _, err := exec.Command("g++", "-std=c++23", cppFilePath, "-o", outputBinary).CombinedOutput(); err != nil {
 		log.Printf("Compilation error: %v", err)
-		handlers.ProduceVerdict(submission, "ce", nil, nil)
+		handler.ProduceVerdict(submission, "ce", nil, nil)
 		return errors.New("Error")
 	}
 	return nil
 }
 
-func (p *CPP) Run(boxId int, submission *structs.Submission) {
+func (p *CPP) Run(boxId int, submission *structs.Submission, handler *handlers.Handler) {
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
 	var maxTime float32
@@ -47,8 +47,6 @@ func (p *CPP) Run(boxId int, submission *structs.Submission) {
 	expectedOutputPath := filepath.Join(boxPath, "expOut.txt")
 	outputPath := filepath.Join(boxPath, "out.txt")
 	metaPath := filepath.Join(boxPath, "meta.txt")
-
-	log.Println(metaPath)
 
 	for i, test := range submission.Testcases {
 		input := test.Input
@@ -74,12 +72,12 @@ func (p *CPP) Run(boxId int, submission *structs.Submission) {
 		)
 		_ = isolateCmd.Run()
 
-		handlers.Compare(boxPath, &maxTime, &maxRSS, &finalResult, i)
+		handler.Compare(boxPath, &maxTime, &maxRSS, &finalResult, i)
 
 		if finalResult != "ac" {
 			break
 		}
 	}
 
-	handlers.ProduceVerdict(submission, finalResult, &maxTime, &maxRSS)
+	handler.ProduceVerdict(submission, finalResult, &maxTime, &maxRSS)
 }
