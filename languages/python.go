@@ -14,16 +14,17 @@ import (
 type Python struct {
 }
 
-func (p *Python) Compile(boxId int, submission *structs.Submission) error {
+func (p *Python) Compile(boxId int, submission *structs.Submission) (structs.Verdict, error) {
 	code := submission.SourceCode
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
 	pyFilePath := filepath.Join(boxPath, "main.py")
 	if err := os.WriteFile(pyFilePath, []byte(code), 0644); err != nil {
 		log.Printf("Error writing code to file: %v", err)
-		return err
+		return structs.Verdict{}, err
 	}
-	return nil
+	return structs.Verdict{}, nil
+
 }
 
 func (p *Python) Run(boxId int, submission *structs.Submission, handler *handlers.Handler) structs.Verdict {

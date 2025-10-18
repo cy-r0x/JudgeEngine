@@ -61,6 +61,17 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 			verdict = cpp.Run(boxId, runReq, handler)
 		}
 	case "python":
+		var py languages.Python
+		verdict, err = py.Compile(boxId, runReq)
+		if err != nil {
+			if verdict.Result == "ce" {
+				return verdict.Result
+			} else {
+				log.Println(err)
+			}
+		} else {
+			verdict = py.Run(boxId, runReq, handler)
+		}
 	default:
 		log.Printf("Unsupported!")
 	}

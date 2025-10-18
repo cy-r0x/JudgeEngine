@@ -46,30 +46,30 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 		mngr.WorkChannel <- w
 	}()
 
-	var Verdict structs.Verdict
+	var verdict structs.Verdict
 	var err error
 
 	switch submission.Language {
 	case "cpp":
 		var cpp languages.CPP
-		Verdict, err = cpp.Compile(w.Id, &submission)
+		verdict, err = cpp.Compile(w.Id, &submission)
 		if err != nil {
-			if Verdict.Result == "ce" {
-				mngr.Handler.ProduceVerdict(&Verdict)
+			if verdict.Result == "ce" {
+				mngr.Handler.ProduceVerdict(&verdict)
 			} else {
 				log.Println(err)
 				return
 			}
 		} else {
-			Verdict = cpp.Run(w.Id, &submission, mngr.Handler)
-			mngr.Handler.ProduceVerdict(&Verdict)
+			verdict = cpp.Run(w.Id, &submission, mngr.Handler)
+			mngr.Handler.ProduceVerdict(&verdict)
 		}
 	case "python":
 		var py languages.Python
-		err = py.Compile(w.Id, &submission)
+		verdict, err = py.Compile(w.Id, &submission)
 		if err == nil {
-			Verdict = py.Run(w.Id, &submission, mngr.Handler)
-			mngr.Handler.ProduceVerdict(&Verdict)
+			verdict = py.Run(w.Id, &submission, mngr.Handler)
+			mngr.Handler.ProduceVerdict(&verdict)
 		}
 	default:
 		log.Printf("Unsupported!")
