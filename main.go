@@ -16,6 +16,7 @@ func main() {
 	config := config.GetConfig()
 	manager := queue.NewQueue()
 	handler := handlers.NewHandler(config)
+	scheduler := scheduler.NewScheduler(handler)
 	err := manager.InitQueue(config.QueueName, config.WorkerCount)
 
 	if err != nil {
@@ -28,9 +29,8 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		scheduler := scheduler.NewScheduler(handler)
 		scheduler.With(config.WorkerCount)
-		log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+		log.Printf("[*] Waiting for messages. To exit press CTRL+C")
 		err := manager.StartConsume(scheduler)
 		if err != nil {
 			log.Println(err)
@@ -41,8 +41,8 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		server := cmd.NewServer(manager)
-		log.Println("Server Running at " + config.HttpPort)
+		server := cmd.NewServer(manager, scheduler)
+		log.Println("[*] Server Running at " + config.HttpPort)
 		server.Listen(config.HttpPort)
 	}()
 

@@ -1,7 +1,6 @@
 package languages
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -15,19 +14,19 @@ import (
 type Python struct {
 }
 
-func (p *Python) Compile(boxId int, submission *structs.Submission, handler *handlers.Handler) error {
+func (p *Python) Compile(boxId int, submission *structs.Submission) error {
 	code := submission.SourceCode
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
 	pyFilePath := filepath.Join(boxPath, "main.py")
 	if err := os.WriteFile(pyFilePath, []byte(code), 0644); err != nil {
 		log.Printf("Error writing code to file: %v", err)
-		return errors.New("Error")
+		return err
 	}
 	return nil
 }
 
-func (p *Python) Run(boxId int, submission *structs.Submission, handler *handlers.Handler) {
+func (p *Python) Run(boxId int, submission *structs.Submission, handler *handlers.Handler) structs.Verdict {
 
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
@@ -74,6 +73,11 @@ func (p *Python) Run(boxId int, submission *structs.Submission, handler *handler
 		}
 	}
 
-	handler.ProduceVerdict(submission, finalResult, &maxTime, &maxRSS)
+	return structs.Verdict{
+		Submission: submission,
+		Result:     finalResult,
+		MaxTime:    &maxTime,
+		MaxRSS:     &maxRSS,
+	}
 
 }

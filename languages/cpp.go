@@ -15,7 +15,7 @@ import (
 type CPP struct {
 }
 
-func (p *CPP) Compile(boxId int, submission *structs.Submission, handler *handlers.Handler) error {
+func (p *CPP) Compile(boxId int, submission *structs.Submission) (structs.Verdict, error) {
 	code := submission.SourceCode
 
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
@@ -23,20 +23,24 @@ func (p *CPP) Compile(boxId int, submission *structs.Submission, handler *handle
 	cppFilePath := filepath.Join(boxPath, "main.cpp")
 	if err := os.WriteFile(cppFilePath, []byte(code), 0644); err != nil {
 		log.Printf("Error writing code to file: %v", err)
-		return errors.New("Error")
+		return structs.Verdict{}, err
 	}
 
 	outputBinary := filepath.Join(boxPath, "main")
 
 	if _, err := exec.Command("g++", "-std=c++23", cppFilePath, "-o", outputBinary).CombinedOutput(); err != nil {
 		log.Printf("Compilation error: %v", err)
-		handler.ProduceVerdict(submission, "ce", nil, nil)
-		return errors.New("Error")
+		return structs.Verdict{
+			Submission: submission,
+			Result:     "ce",
+			MaxTime:    nil,
+			MaxRSS:     nil,
+		}, errors.New("compilation error")
 	}
-	return nil
+	return structs.Verdict{}, nil
 }
 
-func (p *CPP) Run(boxId int, submission *structs.Submission, handler *handlers.Handler) {
+func (p *CPP) Run(boxId int, submission *structs.Submission, handler *handlers.Handler) structs.Verdict {
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
 	var maxTime float32
@@ -78,6 +82,10 @@ func (p *CPP) Run(boxId int, submission *structs.Submission, handler *handlers.H
 			break
 		}
 	}
-
-	handler.ProduceVerdict(submission, finalResult, &maxTime, &maxRSS)
+	return structs.Verdict{
+		Submission: submission,
+		Result:     finalResult,
+		MaxTime:    &maxTime,
+		MaxRSS:     &maxRSS,
+	}
 }

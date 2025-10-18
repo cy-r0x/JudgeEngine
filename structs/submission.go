@@ -6,8 +6,8 @@ type Testcase struct {
 }
 
 type Submission struct {
-	SubmissionId int64      `json:"submission_id"`
-	ProblemId    int64      `json:"problem_id"`
+	SubmissionId *int64     `json:"submission_id"`
+	ProblemId    *int64     `json:"problem_id"`
 	Language     string     `json:"language"`
 	SourceCode   string     `json:"source_code"`
 	Testcases    []Testcase `json:"testcases"`

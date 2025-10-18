@@ -55,7 +55,7 @@ func GenerateToken(submissionId int64, problemId int64, verdict string, execTime
 	}, nil
 }
 
-func (h *Handler) ProduceVerdict(submission *structs.Submission, finalResult string, maxTime, maxRSS *float32) {
+func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
@@ -64,11 +64,11 @@ func (h *Handler) ProduceVerdict(submission *structs.Submission, finalResult str
 
 		// Generate signed token payload
 		payload, err := GenerateToken(
-			submission.SubmissionId,
-			submission.ProblemId,
-			finalResult,
-			maxTime,
-			maxRSS,
+			*verdict.Submission.SubmissionId,
+			*verdict.Submission.ProblemId,
+			verdict.Result,
+			verdict.MaxTime,
+			verdict.MaxRSS,
 			h.Config.EngineKey,
 		)
 		if err != nil {
@@ -83,8 +83,9 @@ func (h *Handler) ProduceVerdict(submission *structs.Submission, finalResult str
 			return
 		}
 
+		url := fmt.Sprintf("%s%s", h.Config.ServerEndpoint, "/api/submissions")
 		// Create PUT request
-		req, err := http.NewRequest(http.MethodPut, fmt.Sprintf("%s/%s", h.Config.ServerEndpoint, "api/submissions"), bytes.NewBuffer(jsonData))
+		req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonData))
 		if err != nil {
 			log.Println("Error creating PUT request:", err)
 			return
