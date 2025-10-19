@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"sync"
@@ -64,8 +65,8 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 
 		// Generate signed token payload
 		payload, err := GenerateToken(
-			*verdict.Submission.SubmissionId,
-			*verdict.Submission.ProblemId,
+			*(verdict.Submission.SubmissionId),
+			*(verdict.Submission.ProblemId),
 			verdict.Result,
 			verdict.MaxTime,
 			verdict.MaxRSS,
@@ -101,7 +102,14 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 		}
 		defer resp.Body.Close()
 
-		log.Println("PUT response status:", resp.Status, resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			log.Println("Error reading response body:", err)
+		} else {
+			log.Println("PUT response status:", resp.Status)
+			log.Println("PUT response body:", string(bodyBytes))
+		}
+
 	}()
 
 	wg.Wait()
