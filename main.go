@@ -13,23 +13,29 @@ import (
 
 func main() {
 
+	//load .env file
 	config := config.GetConfig()
-	manager := queue.NewQueue()
-	handler := handlers.NewHandler(config)
-	scheduler := scheduler.NewScheduler(handler)
-	err := manager.InitQueue(config.QueueName, config.WorkerCount)
 
+	//init new queue manager
+	manager := queue.NewQueue()
+	err := manager.InitQueue(config.QueueName, config.WorkerCount)
 	if err != nil {
 		log.Println(err)
 		return
 	}
+
+	//init new handler
+	handler := handlers.NewHandler(config)
+
+	//init scheduler
+	scheduler := scheduler.NewScheduler(handler)
+	scheduler.With(config.WorkerCount)
 
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		scheduler.With(config.WorkerCount)
 		log.Printf("[*] Waiting for messages. To exit press CTRL+C")
 		err := manager.StartConsume(scheduler)
 		if err != nil {
