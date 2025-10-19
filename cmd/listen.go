@@ -116,7 +116,7 @@ func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
 func (s *Server) hudai(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Content-Type", "application/json")
 	if r.Method == "OPTIONS" {
 		utils.SendResponse(w, http.StatusNoContent, "")
