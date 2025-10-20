@@ -16,6 +16,20 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 	var verdict structs.Verdict
 	var err error
 	switch runReq.Language {
+	case "c":
+		var c languages.C
+
+		verdict, err = c.Compile(boxId, runReq)
+		if err != nil {
+			if verdict.Result == "ce" {
+				return verdict.Result
+			} else {
+				log.Println(err)
+			}
+		} else {
+			verdict = c.Run(boxId, runReq, handler)
+		}
+
 	case "cpp":
 		var cpp languages.CPP
 
@@ -42,7 +56,7 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 			verdict = py.Run(boxId, runReq, handler)
 		}
 	default:
-		log.Printf("Unsupported!")
+		log.Printf("Unsupported language: %s", runReq.Language)
 	}
 	// more to go
 	return verdict.Result

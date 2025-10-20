@@ -50,6 +50,21 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 	var err error
 
 	switch submission.Language {
+	case "c":
+		var c languages.C
+		verdict, err = c.Compile(w.Id, &submission)
+		if err != nil {
+			if verdict.Result == "ce" {
+				mngr.Handler.ProduceVerdict(&verdict)
+			} else {
+				log.Println(err)
+				return
+			}
+		} else {
+			verdict = c.Run(w.Id, &submission, mngr.Handler)
+			mngr.Handler.ProduceVerdict(&verdict)
+		}
+
 	case "cpp":
 		var cpp languages.CPP
 		verdict, err = cpp.Compile(w.Id, &submission)
@@ -64,7 +79,7 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 			verdict = cpp.Run(w.Id, &submission, mngr.Handler)
 			mngr.Handler.ProduceVerdict(&verdict)
 		}
-	case "python":
+	case "py":
 		var py languages.Python
 		verdict, err = py.Compile(w.Id, &submission)
 		if err == nil {
@@ -72,6 +87,6 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 			mngr.Handler.ProduceVerdict(&verdict)
 		}
 	default:
-		log.Printf("Unsupported!")
+		log.Printf("Unsupported language: %s", submission.Language)
 	}
 }
