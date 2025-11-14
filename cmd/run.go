@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"sync"
 
@@ -13,51 +12,31 @@ import (
 )
 
 func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) string {
+	if runReq.Language == "" {
+		return "ce"
+	}
+	if runReq.SourceCode == "" {
+		return "ce"
+	}
 	var verdict structs.Verdict
 	var err error
+	var runner interface {
+		Compile(boxId int, runReq *structs.Submission) (structs.Verdict, error)
+		Run(boxId int, runReq *structs.Submission, handler *handlers.Handler) structs.Verdict
+	}
 	switch runReq.Language {
 	case "c":
-		var c languages.C
-
-		verdict, err = c.Compile(boxId, runReq)
-		if err != nil {
-			if verdict.Result == "ce" {
-				return verdict.Result
-			} else {
-				log.Println(err)
-			}
-		} else {
-			verdict = c.Run(boxId, runReq, handler)
-		}
-
+		runner = &languages.C{}
 	case "cpp":
-		var cpp languages.CPP
-
-		verdict, err = cpp.Compile(boxId, runReq)
-		if err != nil {
-			if verdict.Result == "ce" {
-				return verdict.Result
-			} else {
-				log.Println(err)
-			}
-		} else {
-			verdict = cpp.Run(boxId, runReq, handler)
-		}
+		runner = &languages.CPP{}
 	case "python":
-		var py languages.Python
-		verdict, err = py.Compile(boxId, runReq)
-		if err != nil {
-			if verdict.Result == "ce" {
-				return verdict.Result
-			} else {
-				log.Println(err)
-			}
-		} else {
-			verdict = py.Run(boxId, runReq, handler)
-		}
-	default:
-		log.Printf("Unsupported language: %s", runReq.Language)
+		runner = &languages.Python{}
 	}
+	verdict, err = runner.Compile(boxId, runReq)
+	if err != nil {
+		return "ce"
+	}
+	verdict = runner.Run(boxId, runReq, handler)
 	// more to go
 	return verdict.Result
 }
