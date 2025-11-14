@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"net/http"
-	"sync"
 
 	"github.com/judgenot0/judge-deamon/handlers"
 	"github.com/judgenot0/judge-deamon/languages"
@@ -51,25 +50,18 @@ func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
 		utils.SendResponse(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
-		slave := <-s.scheduler.WorkChannel
+	slave := <-s.scheduler.WorkChannel
 
-		defer func() {
-			s.scheduler.WorkChannel <- slave
-			wg.Done()
-		}()
-		verdict := run(slave.Id, &runReq, s.scheduler.Handler)
-
-		utils.SendResponse(w, http.StatusOK, struct {
-			Result string `json:"result"`
-		}{
-			Result: verdict,
-		})
-
+	defer func() {
+		s.scheduler.WorkChannel <- slave
 	}()
+	verdict := run(slave.Id, &runReq, s.scheduler.Handler)
 
-	wg.Wait()
+	utils.SendResponse(w, http.StatusOK, struct {
+		Result string `json:"result"`
+	}{
+		Result: verdict,
+	})
+
 }
