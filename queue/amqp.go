@@ -3,6 +3,7 @@ package queue
 import (
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/judgenot0/judge-deamon/scheduler"
 	"github.com/judgenot0/judge-deamon/structs"
@@ -85,15 +86,32 @@ func (q *Queue) StartConsume(scheduler *scheduler.Scheduler) error {
 	}
 
 	for d := range q.msgs {
-		slave := <-scheduler.WorkChannel
-		var submission structs.Submission
-		err := json.Unmarshal(d.Body, &submission)
-		if err != nil {
-			log.Printf("Raw body: %s", string(d.Body))
-			log.Printf("Invalid message body: %v", err)
-			continue
+		select {
+		case slave := <-scheduler.WorkChannel:
+			var submission structs.Submission
+			err := json.Unmarshal(d.Body, &submission)
+			if err != nil {
+				log.Printf("Raw body: %s", string(d.Body))
+				log.Printf("Invalid message body: %v", err)
+				d.Nack(false, false)
+				continue
+			}
+
+			go func(delivery amqp.Delivery, worker structs.Worker, sub structs.Submission) {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Printf("Panic in scheduler.Work: %v", r)
+						delivery.Nack(false, true)
+						scheduler.WorkChannel <- worker
+					}
+				}()
+				scheduler.Work(worker, sub, delivery)
+			}(d, slave, submission)
+
+		case <-time.After(5 * time.Minute):
+			log.Println("Warning: No workers available for 5 minutes, message will be redelivered")
+			d.Nack(false, true)
 		}
-		go scheduler.Work(slave, submission, d)
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/judgenot0/judge-deamon/handlers"
 	"github.com/judgenot0/judge-deamon/languages"
@@ -30,6 +31,8 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 		runner = &languages.CPP{}
 	case "python":
 		runner = &languages.Python{}
+	default:
+		return "ce"
 	}
 	verdict, err = runner.Compile(boxId, runReq)
 	if err != nil {
@@ -43,25 +46,41 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	defer r.Body.Close()
+
 	decoder := json.NewDecoder(r.Body)
 	var runReq structs.Submission
-	err := decoder.Decode(&runReq)
-	if err != nil {
+	if err := decoder.Decode(&runReq); err != nil {
 		utils.SendResponse(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 
-	slave := <-s.scheduler.WorkChannel
+	select {
+	case slave := <-s.scheduler.WorkChannel:
+		defer func() {
+			s.scheduler.WorkChannel <- slave
+		}()
 
-	defer func() {
-		s.scheduler.WorkChannel <- slave
-	}()
-	verdict := run(slave.Id, &runReq, s.scheduler.Handler)
+		var panicked bool
+		var verdict string
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					panicked = true
+				}
+			}()
+			verdict = run(slave.Id, &runReq, s.scheduler.Handler)
+		}()
 
-	utils.SendResponse(w, http.StatusOK, struct {
-		Result string `json:"result"`
-	}{
-		Result: verdict,
-	})
+		if panicked {
+			utils.SendResponse(w, http.StatusInternalServerError, "Internal server error")
+			return
+		}
 
+		utils.SendResponse(w, http.StatusOK, map[string]string{
+			"result": verdict,
+		})
+	case <-time.After(30 * time.Second):
+		utils.SendResponse(w, http.StatusServiceUnavailable, "No workers available")
+	}
 }

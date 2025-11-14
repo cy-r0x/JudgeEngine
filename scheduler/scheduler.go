@@ -40,53 +40,76 @@ func (mngr *Scheduler) With(workerCount int) {
 }
 
 func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d amqp.Delivery) {
+	var shouldAck bool
+	var shouldNack bool
+
 	defer func() {
-		exec.Command("isolate", fmt.Sprintf("--box-id=%d", w.Id), "--init").Run()
-		d.Ack(false)
+		if r := recover(); r != nil {
+			log.Printf("Panic in scheduler.Work: %v", r)
+			shouldNack = true
+		}
+
+		cmd := exec.Command("isolate", fmt.Sprintf("--box-id=%d", w.Id), "--init")
+		if err := cmd.Run(); err != nil {
+			log.Printf("Error cleaning up sandbox %d: %v", w.Id, err)
+		}
+
+		if shouldNack {
+			d.Nack(false, true)
+		} else if shouldAck {
+			if err := d.Ack(false); err != nil {
+				log.Printf("Error acknowledging message: %v", err)
+			}
+		} else {
+			d.Nack(false, true)
+		}
+
 		mngr.WorkChannel <- w
 	}()
 
 	var verdict structs.Verdict
 	var err error
+	var runner interface {
+		Compile(boxId int, runReq *structs.Submission) (structs.Verdict, error)
+		Run(boxId int, runReq *structs.Submission, handler *handlers.Handler) structs.Verdict
+	}
 
 	switch submission.Language {
 	case "c":
-		var c languages.C
-		verdict, err = c.Compile(w.Id, &submission)
-		if err != nil {
-			if verdict.Result == "ce" {
-				mngr.Handler.ProduceVerdict(&verdict)
-			} else {
-				log.Println(err)
-				return
-			}
-		} else {
-			verdict = c.Run(w.Id, &submission, mngr.Handler)
-			mngr.Handler.ProduceVerdict(&verdict)
-		}
-
+		runner = &languages.C{}
 	case "cpp":
-		var cpp languages.CPP
-		verdict, err = cpp.Compile(w.Id, &submission)
-		if err != nil {
-			if verdict.Result == "ce" {
-				mngr.Handler.ProduceVerdict(&verdict)
-			} else {
-				log.Println(err)
-				return
-			}
-		} else {
-			verdict = cpp.Run(w.Id, &submission, mngr.Handler)
-			mngr.Handler.ProduceVerdict(&verdict)
-		}
-	case "py":
-		var py languages.Python
-		verdict, err = py.Compile(w.Id, &submission)
-		if err == nil {
-			verdict = py.Run(w.Id, &submission, mngr.Handler)
-			mngr.Handler.ProduceVerdict(&verdict)
-		}
+		runner = &languages.CPP{}
+	case "py", "python":
+		runner = &languages.Python{}
 	default:
 		log.Printf("Unsupported language: %s", submission.Language)
+		verdict = structs.Verdict{
+			Submission: &submission,
+			Result:     "ce",
+		}
+		mngr.Handler.ProduceVerdict(&verdict)
+		shouldAck = true
+		return
 	}
+
+	verdict, err = runner.Compile(w.Id, &submission)
+	if err != nil {
+		if verdict.Result == "ce" {
+			mngr.Handler.ProduceVerdict(&verdict)
+			shouldAck = true
+		} else {
+			log.Printf("Compilation error for submission %v: %v", submission, err)
+			verdict = structs.Verdict{
+				Submission: &submission,
+				Result:     "ce",
+			}
+			mngr.Handler.ProduceVerdict(&verdict)
+			shouldAck = true
+		}
+		return
+	}
+
+	verdict = runner.Run(w.Id, &submission, mngr.Handler)
+	mngr.Handler.ProduceVerdict(&verdict)
+	shouldAck = true
 }
