@@ -2,7 +2,10 @@ package cmd
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"os/exec"
 	"time"
 
 	"github.com/judgenot0/judge-deamon/handlers"
@@ -55,9 +58,13 @@ func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	select {
-	case slave := <-s.scheduler.WorkChannel:
+	case worker := <-s.scheduler.WorkChannel:
 		defer func() {
-			s.scheduler.WorkChannel <- slave
+			cmd := exec.Command("isolate", fmt.Sprintf("--box-id=%d", worker.Id), "--init")
+			if err := cmd.Run(); err != nil {
+				log.Printf("Error resetting sandbox %d: %v", worker.Id, err)
+			}
+			s.scheduler.WorkChannel <- worker
 		}()
 
 		var panicked bool
@@ -68,7 +75,7 @@ func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
 					panicked = true
 				}
 			}()
-			verdict = run(slave.Id, &runReq, s.scheduler.Handler)
+			verdict = run(worker.Id, &runReq, s.scheduler.Handler)
 		}()
 
 		if panicked {

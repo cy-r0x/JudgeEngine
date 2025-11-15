@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -19,40 +19,48 @@ type Meta struct {
 }
 
 func (h *Handler) Compare(boxPath string, maxTime *float32, maxRSS *float32, finalResult *string, testCase int) {
-
-	metaPath := fmt.Sprintf("%smeta.txt", boxPath)
-	outputPath := fmt.Sprintf("%sout.txt", boxPath)
-	expectedOutputPath := fmt.Sprintf("%sexpOut.txt", boxPath)
+	metaPath := filepath.Join(boxPath, "meta.txt")
+	outputPath := filepath.Join(boxPath, "out.txt")
+	expectedOutputPath := filepath.Join(boxPath, "expOut.txt")
 
 	metaContent, err := os.ReadFile(metaPath)
 	if err != nil {
 		log.Printf("Error reading meta file: %v", err)
+		*finalResult = "ie"
 		return
 	}
 
 	var meta Meta
-	for line := range strings.SplitSeq(string(metaContent), "\n") {
+	for _, line := range strings.Split(string(metaContent), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
 		parts := strings.SplitN(line, ":", 2)
 		if len(parts) != 2 {
 			continue
 		}
-		switch parts[0] {
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		switch key {
 		case "status":
-			meta.Status = parts[1]
+			meta.Status = value
 		case "message":
-			meta.Message = parts[1]
+			meta.Message = value
 		case "killed":
-			meta.Killed, _ = strconv.Atoi(parts[1])
+			if v, err := strconv.Atoi(value); err == nil {
+				meta.Killed = v
+			}
 		case "time":
-			if v, err := strconv.ParseFloat(parts[1], 32); err == nil {
+			if v, err := strconv.ParseFloat(value, 32); err == nil {
 				meta.Time = float32(v)
 			}
 		case "time-wall":
-			if v, err := strconv.ParseFloat(parts[1], 32); err == nil {
+			if v, err := strconv.ParseFloat(value, 32); err == nil {
 				meta.Time_Wall = float32(v)
 			}
 		case "max-rss":
-			if v, err := strconv.ParseFloat(parts[1], 32); err == nil {
+			if v, err := strconv.ParseFloat(value, 32); err == nil {
 				meta.Max_RSS = float32(v)
 			}
 		}
@@ -68,20 +76,33 @@ func (h *Handler) Compare(boxPath string, maxTime *float32, maxRSS *float32, fin
 	if meta.Status != "" {
 		switch meta.Status {
 		case "RE":
-			*finalResult = "re" //runtime error
+			*finalResult = "re"
 		case "SG":
-			*finalResult = "re" //runtime error
+			*finalResult = "re"
 		case "TO":
-			*finalResult = "tle" //time limit exceeded
+			*finalResult = "tle"
 		case "XX":
-			*finalResult = "ie" //internal error
+			*finalResult = "ie"
 		}
+		return
+	}
+
+	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
+		log.Printf("Output file does not exist: %s", outputPath)
+		*finalResult = "ie"
+		return
+	}
+
+	if _, err := os.Stat(expectedOutputPath); os.IsNotExist(err) {
+		log.Printf("Expected output file does not exist: %s", expectedOutputPath)
+		*finalResult = "ie"
 		return
 	}
 
 	diffCmd := exec.Command("diff", "-Z", "-B", outputPath, expectedOutputPath)
 	if _, err := diffCmd.CombinedOutput(); err != nil {
-		*finalResult = "wa" //Wrong Answer
+		*finalResult = "wa"
+	} else {
+		*finalResult = "ac"
 	}
-
 }
