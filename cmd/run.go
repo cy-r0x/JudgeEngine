@@ -28,30 +28,9 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 	case "c":
 		runner = &languages.C{}
 	case "cpp":
-		var cpp languages.CPP
-
-		verdict, err = cpp.Compile(boxId, runReq)
-		if err != nil {
-			if verdict.Result == "ce" {
-				return verdict.Result
-			} else {
-				log.Println(err)
-			}
-		} else {
-			verdict = cpp.Run(boxId, runReq, handler)
-		}
-	case "python":
-		var py languages.Python
-		verdict, err = py.Compile(boxId, runReq)
-		if err != nil {
-			if verdict.Result == "ce" {
-				return verdict.Result
-			} else {
-				log.Println(err)
-			}
-		} else {
-			verdict = py.Run(boxId, runReq, handler)
-		}
+		runner = &languages.CPP{}
+	case "py":
+		runner = &languages.Python{}
 	default:
 		return "ce"
 	}
@@ -60,7 +39,6 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 		return "ce"
 	}
 	verdict = runner.Run(boxId, runReq, handler)
-	// more to go
 	return verdict.Result
 }
 

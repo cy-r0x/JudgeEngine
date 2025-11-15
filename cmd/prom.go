@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -14,51 +15,45 @@ import (
 )
 
 type SystemMetrics struct {
-	CPUUsage     *prometheus.GaugeVec
-	MemoryUsed   *prometheus.GaugeVec
-	DiskUsed     *prometheus.GaugeVec
-	DiskRead     *prometheus.CounterVec
-	DiskWrite    *prometheus.CounterVec
-	NetworkRecv  *prometheus.CounterVec
-	NetworkTrans *prometheus.CounterVec
+	CPUUsage     prometheus.Gauge
+	MemoryUsed   prometheus.Gauge
+	DiskUsed     prometheus.Gauge
+	DiskRead     prometheus.Counter
+	DiskWrite    prometheus.Counter
+	NetworkRecv  prometheus.Counter
+	NetworkTrans prometheus.Counter
 }
 
-func newSystemMetrics(node string) *SystemMetrics {
+func newSystemMetrics() *SystemMetrics {
 	return &SystemMetrics{
-		CPUUsage: promauto.NewGaugeVec(prometheus.GaugeOpts{
+		CPUUsage: promauto.NewGauge(prometheus.GaugeOpts{
 			Name: "system_cpu_usage_percent",
 			Help: "Total CPU usage percentage across all cores",
-		}, []string{"node"}),
-
-		MemoryUsed: promauto.NewGaugeVec(prometheus.GaugeOpts{
+		}),
+		MemoryUsed: promauto.NewGauge(prometheus.GaugeOpts{
 			Name: "system_memory_used_bytes",
 			Help: "Total used memory in bytes",
-		}, []string{"node"}),
-
-		DiskUsed: promauto.NewGaugeVec(prometheus.GaugeOpts{
+		}),
+		DiskUsed: promauto.NewGauge(prometheus.GaugeOpts{
 			Name: "system_disk_used_bytes",
 			Help: "Total disk usage in bytes for root filesystem",
-		}, []string{"node"}),
-
-		DiskRead: promauto.NewCounterVec(prometheus.CounterOpts{
+		}),
+		DiskRead: promauto.NewCounter(prometheus.CounterOpts{
 			Name: "system_disk_read_bytes_total",
 			Help: "Total disk read bytes since boot",
-		}, []string{"node"}),
-
-		DiskWrite: promauto.NewCounterVec(prometheus.CounterOpts{
+		}),
+		DiskWrite: promauto.NewCounter(prometheus.CounterOpts{
 			Name: "system_disk_write_bytes_total",
 			Help: "Total disk write bytes since boot",
-		}, []string{"node"}),
-
-		NetworkRecv: promauto.NewCounterVec(prometheus.CounterOpts{
+		}),
+		NetworkRecv: promauto.NewCounter(prometheus.CounterOpts{
 			Name: "system_network_receive_bytes_total",
 			Help: "Total received bytes across all interfaces",
-		}, []string{"node"}),
-
-		NetworkTrans: promauto.NewCounterVec(prometheus.CounterOpts{
+		}),
+		NetworkTrans: promauto.NewCounter(prometheus.CounterOpts{
 			Name: "system_network_transmit_bytes_total",
 			Help: "Total transmitted bytes across all interfaces",
-		}, []string{"node"}),
+		}),
 	}
 }
 
@@ -71,16 +66,16 @@ func (m *SystemMetrics) Collect() {
 			// CPU %
 			cpuPercent, _ := cpu.Percent(0, false)
 			if len(cpuPercent) > 0 {
-				m.CPUUsage.WithLabelValues("node").Set(cpuPercent[0])
+				m.CPUUsage.Set(cpuPercent[0])
 			}
 
 			// Memory
 			vmStat, _ := mem.VirtualMemory()
-			m.MemoryUsed.WithLabelValues("node").Set(float64(vmStat.Used))
+			m.MemoryUsed.Set(float64(vmStat.Used))
 
 			// Disk usage
 			diskStat, _ := disk.Usage("/")
-			m.DiskUsed.WithLabelValues("node").Set(float64(diskStat.Used))
+			m.DiskUsed.Set(float64(diskStat.Used))
 
 			// Disk I/O
 			ioStats, _ := disk.IOCounters()
@@ -89,16 +84,16 @@ func (m *SystemMetrics) Collect() {
 				totalRead += io.ReadBytes
 				totalWrite += io.WriteBytes
 			}
-			m.DiskRead.WithLabelValues("node").Add(float64(totalRead - prevDiskRead))
-			m.DiskWrite.WithLabelValues("node").Add(float64(totalWrite - prevDiskWrite))
+			m.DiskRead.Add(float64(totalRead - prevDiskRead))
+			m.DiskWrite.Add(float64(totalWrite - prevDiskWrite))
 			prevDiskRead, prevDiskWrite = totalRead, totalWrite
 			// Network I/O
 			netStats, _ := gnet.IOCounters(false)
 			if len(netStats) > 0 {
 				currRecv := netStats[0].BytesRecv
 				currTrans := netStats[0].BytesSent
-				m.NetworkRecv.WithLabelValues("node").Add(float64(currRecv - prevNetRecv))
-				m.NetworkTrans.WithLabelValues("node").Add(float64(currTrans - prevNetTrans))
+				m.NetworkRecv.Add(float64(currRecv - prevNetRecv))
+				m.NetworkTrans.Add(float64(currTrans - prevNetTrans))
 				prevNetRecv, prevNetTrans = currRecv, currTrans
 			}
 			time.Sleep(5 * time.Second)
@@ -108,7 +103,8 @@ func (m *SystemMetrics) Collect() {
 
 func (s *Server) RegisterMetrics() {
 	node := s.RegisterNode()
-	sysMetrics := newSystemMetrics(node)
+	log.Printf("Registered node with ID: %s", node)
+	sysMetrics := newSystemMetrics()
 	sysMetrics.Collect()
 }
 

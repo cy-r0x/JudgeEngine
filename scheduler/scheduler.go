@@ -79,7 +79,7 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 		runner = &languages.C{}
 	case "cpp":
 		runner = &languages.CPP{}
-	case "py", "python":
+	case "py":
 		runner = &languages.Python{}
 	default:
 		log.Printf("Unsupported language: %s", submission.Language)

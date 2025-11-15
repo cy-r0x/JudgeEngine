@@ -102,12 +102,11 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 		}
 		defer resp.Body.Close()
 
-		bodyBytes, err := io.ReadAll(resp.Body)
+		_, err = io.ReadAll(resp.Body)
 		if err != nil {
 			log.Println("Error reading response body:", err)
 		} else {
 			log.Println("PUT response status:", resp.Status)
-			log.Println("PUT response body:", string(bodyBytes))
 		}
 
 	}()
