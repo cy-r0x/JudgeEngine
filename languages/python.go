@@ -69,7 +69,7 @@ func (p *Python) Run(boxId int, submission *structs.Submission, handler *handler
 
 		handler.Compare(boxPath, &maxTime, &maxRSS, &finalResult, i)
 
-		if finalResult != "Accepted" {
+		if finalResult != "ac" {
 			break
 		}
 	}
