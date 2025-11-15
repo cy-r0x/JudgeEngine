@@ -2,9 +2,8 @@ package cmd
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
-	"sync"
+	"time"
 
 	"github.com/judgenot0/judge-deamon/handlers"
 	"github.com/judgenot0/judge-deamon/languages"
@@ -13,23 +12,21 @@ import (
 )
 
 func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) string {
+	if runReq.Language == "" {
+		return "ce"
+	}
+	if runReq.SourceCode == "" {
+		return "ce"
+	}
 	var verdict structs.Verdict
 	var err error
+	var runner interface {
+		Compile(boxId int, runReq *structs.Submission) (structs.Verdict, error)
+		Run(boxId int, runReq *structs.Submission, handler *handlers.Handler) structs.Verdict
+	}
 	switch runReq.Language {
 	case "c":
-		var c languages.C
-
-		verdict, err = c.Compile(boxId, runReq)
-		if err != nil {
-			if verdict.Result == "ce" {
-				return verdict.Result
-			} else {
-				log.Println(err)
-			}
-		} else {
-			verdict = c.Run(boxId, runReq, handler)
-		}
-
+		runner = &languages.C{}
 	case "cpp":
 		var cpp languages.CPP
 
@@ -43,7 +40,7 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 		} else {
 			verdict = cpp.Run(boxId, runReq, handler)
 		}
-	case "py":
+	case "python":
 		var py languages.Python
 		verdict, err = py.Compile(boxId, runReq)
 		if err != nil {
@@ -56,8 +53,13 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 			verdict = py.Run(boxId, runReq, handler)
 		}
 	default:
-		log.Printf("Unsupported language: %s", runReq.Language)
+		return "ce"
 	}
+	verdict, err = runner.Compile(boxId, runReq)
+	if err != nil {
+		return "ce"
+	}
+	verdict = runner.Run(boxId, runReq, handler)
 	// more to go
 	return verdict.Result
 }
@@ -65,32 +67,41 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	defer r.Body.Close()
+
 	decoder := json.NewDecoder(r.Body)
 	var runReq structs.Submission
-	err := decoder.Decode(&runReq)
-	if err != nil {
+	if err := decoder.Decode(&runReq); err != nil {
 		utils.SendResponse(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
-		slave := <-s.scheduler.WorkChannel
-
+	select {
+	case slave := <-s.scheduler.WorkChannel:
 		defer func() {
 			s.scheduler.WorkChannel <- slave
-			wg.Done()
 		}()
-		verdict := run(slave.Id, &runReq, s.scheduler.Handler)
 
-		utils.SendResponse(w, http.StatusOK, struct {
-			Result string `json:"result"`
-		}{
-			Result: verdict,
+		var panicked bool
+		var verdict string
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					panicked = true
+				}
+			}()
+			verdict = run(slave.Id, &runReq, s.scheduler.Handler)
+		}()
+
+		if panicked {
+			utils.SendResponse(w, http.StatusInternalServerError, "Internal server error")
+			return
+		}
+
+		utils.SendResponse(w, http.StatusOK, map[string]string{
+			"result": verdict,
 		})
-
-	}()
-
-	wg.Wait()
+	case <-time.After(30 * time.Second):
+		utils.SendResponse(w, http.StatusServiceUnavailable, "No workers available")
+	}
 }
