@@ -10,7 +10,7 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"sync"
+	"strings"
 	"time"
 
 	"github.com/judgenot0/judge-deamon/structs"
@@ -28,6 +28,10 @@ type EngineData struct {
 type EnginePayload struct {
 	Data        *EngineData `json:"payload"`
 	AccessToken string      `json:"access_token"`
+}
+
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
 }
 
 func GenerateToken(submissionId int64, problemId int64, verdict string, execTime, execMem *float32, secret string) (*EnginePayload, error) {
@@ -57,13 +61,17 @@ func GenerateToken(submissionId int64, problemId int64, verdict string, execTime
 }
 
 func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
-	var wg sync.WaitGroup
-	wg.Add(1)
+	if verdict == nil || verdict.Submission == nil {
+		log.Println("Error: verdict or submission is nil")
+		return
+	}
+
+	if verdict.Submission.SubmissionId == nil || verdict.Submission.ProblemId == nil {
+		log.Println("Error: submission_id or problem_id is nil")
+		return
+	}
 
 	go func() {
-		defer wg.Done()
-
-		// Generate signed token payload
 		payload, err := GenerateToken(
 			*(verdict.Submission.SubmissionId),
 			*(verdict.Submission.ProblemId),
@@ -77,15 +85,15 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 			return
 		}
 
-		// Marshal payload into JSON
 		jsonData, err := json.Marshal(payload)
 		if err != nil {
 			log.Println("Error marshaling payload:", err)
 			return
 		}
 
-		url := fmt.Sprintf("%s%s", h.Config.ServerEndpoint, "/api/submissions")
-		// Create PUT request
+		endpoint := strings.TrimSuffix(h.Config.ServerEndpoint, "/")
+		url := fmt.Sprintf("%s/api/submissions", endpoint)
+
 		req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonData))
 		if err != nil {
 			log.Println("Error creating PUT request:", err)
@@ -93,9 +101,7 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 		}
 		req.Header.Set("Content-Type", "application/json")
 
-		// Send request
-		client := &http.Client{}
-		resp, err := client.Do(req)
+		resp, err := httpClient.Do(req)
 		if err != nil {
 			log.Println("Error sending PUT request:", err)
 			return
@@ -104,13 +110,16 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 
 		bodyResp, err := io.ReadAll(resp.Body)
 		if err != nil {
-			log.Println("Error reading response body:", err)
-		} else {
-			log.Println("PUT response status:", resp.Status)
-			log.Println("PUT response body:", string(bodyResp))
+			log.Printf("Error reading response body: %v", err)
+			return
 		}
 
-	}()
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			log.Printf("PUT request failed with status %d: %s", resp.StatusCode, string(bodyResp))
+			return
+		}
 
-	wg.Wait()
+		log.Printf("PUT response status: %s", resp.Status)
+		log.Printf("PUT response body: %s", string(bodyResp))
+	}()
 }

@@ -28,8 +28,9 @@ func (p *C) Compile(boxId int, submission *structs.Submission) (structs.Verdict,
 
 	outputBinary := filepath.Join(boxPath, "main")
 
-	if _, err := exec.Command("gcc", "-std=c11", cFilePath, "-o", outputBinary).CombinedOutput(); err != nil {
-		log.Printf("Compilation error: %v", err)
+	output, err := exec.Command("gcc", "-Wall", "-Wextra", "-O2", "-std=c11", cFilePath, "-o", outputBinary).CombinedOutput()
+	if err != nil {
+		log.Printf("Compilation error: %v, output: %s", err, string(output))
 		return structs.Verdict{
 			Submission: submission,
 			Result:     "ce",
@@ -37,6 +38,17 @@ func (p *C) Compile(boxId int, submission *structs.Submission) (structs.Verdict,
 			MaxRSS:     nil,
 		}, errors.New("compilation error")
 	}
+
+	if _, err := os.Stat(outputBinary); os.IsNotExist(err) {
+		log.Printf("Compilation succeeded but binary not found: %s", outputBinary)
+		return structs.Verdict{
+			Submission: submission,
+			Result:     "ce",
+			MaxTime:    nil,
+			MaxRSS:     nil,
+		}, errors.New("binary not created")
+	}
+
 	return structs.Verdict{}, nil
 }
 
@@ -56,9 +68,23 @@ func (p *C) Run(boxId int, submission *structs.Submission, handler *handlers.Han
 		input := test.Input
 		output := test.ExpectedOutput
 
-		os.WriteFile(inputPath, []byte(input), 0644)
-		os.WriteFile(expectedOutputPath, []byte(output), 0644)
-		os.WriteFile(outputPath, []byte(""), 0644)
+		if err := os.WriteFile(inputPath, []byte(input), 0644); err != nil {
+			log.Printf("Error writing input file: %v", err)
+			finalResult = "ie"
+			break
+		}
+
+		if err := os.WriteFile(expectedOutputPath, []byte(output), 0644); err != nil {
+			log.Printf("Error writing expected output file: %v", err)
+			finalResult = "ie"
+			break
+		}
+
+		if err := os.WriteFile(outputPath, []byte(""), 0644); err != nil {
+			log.Printf("Error writing output file: %v", err)
+			finalResult = "ie"
+			break
+		}
 
 		memLimit := submission.MemoryLimit * 1024
 		isolateCmd := exec.Command("isolate",
@@ -74,7 +100,10 @@ func (p *C) Run(boxId int, submission *structs.Submission, handler *handlers.Han
 			"--",
 			"./main",
 		)
-		_ = isolateCmd.Run()
+
+		if err := isolateCmd.Run(); err != nil {
+			log.Printf("Error running isolate command: %v", err)
+		}
 
 		handler.Compare(boxPath, &maxTime, &maxRSS, &finalResult, i)
 
