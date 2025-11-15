@@ -28,7 +28,18 @@ func (p *CPP) Compile(boxId int, submission *structs.Submission) (structs.Verdic
 
 	outputBinary := filepath.Join(boxPath, "main")
 
-	output, err := exec.Command("g++", "-Wall", "-Wextra", "-O2", "-std=c++23", cppFilePath, "-o", outputBinary).CombinedOutput()
+	output, err := exec.Command(
+		"g++",
+		"-std=gnu++23",
+		"-O2",
+		"-pipe",
+		"-Wall",
+		"-Wextra",
+		"-s",
+		cppFilePath,
+		"-o", outputBinary,
+	).CombinedOutput()
+
 	if err != nil {
 		log.Printf("Compilation error: %v, output: %s", err, string(output))
 		return structs.Verdict{

@@ -28,7 +28,18 @@ func (p *C) Compile(boxId int, submission *structs.Submission) (structs.Verdict,
 
 	outputBinary := filepath.Join(boxPath, "main")
 
-	output, err := exec.Command("gcc", "-Wall", "-Wextra", "-O2", "-std=c11", cFilePath, "-o", outputBinary).CombinedOutput()
+	output, err := exec.Command(
+		"gcc",
+		"-std=gnu11",
+		"-O2",
+		"-pipe",
+		"-Wall",
+		"-Wextra",
+		"-s",
+		cFilePath,
+		"-o", outputBinary,
+	).CombinedOutput()
+
 	if err != nil {
 		log.Printf("Compilation error: %v, output: %s", err, string(output))
 		return structs.Verdict{
