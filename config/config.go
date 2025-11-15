@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 
 	env "github.com/joho/godotenv"
 )
@@ -15,6 +16,11 @@ type Config struct {
 	EngineKey      string
 	ServerEndpoint string
 }
+
+var (
+	instance *Config
+	once     sync.Once
+)
 
 func loadConfig() Config {
 	err := env.Load()
@@ -46,20 +52,21 @@ func loadConfig() Config {
 
 	config.EngineKey = os.Getenv("ENGINE_KEY")
 	if config.EngineKey == "" {
-		log.Println("Engine Key not set")
-		os.Exit(1)
+		log.Fatalln("ENGINE_KEY not set") // same as log.println and then exit
 	}
 
 	config.ServerEndpoint = os.Getenv("SERVER_ENDPOINT")
 	if config.ServerEndpoint == "" {
-		log.Println("Server Endpoint  not set")
-		os.Exit(1)
+		log.Fatalln("SERVER_ENDPOINT not set")
 	}
 
 	return config
 }
 
 func GetConfig() *Config {
-	config := loadConfig()
-	return &config
+	once.Do(func() {
+		config := loadConfig()
+		instance = &config
+	})
+	return instance
 }
