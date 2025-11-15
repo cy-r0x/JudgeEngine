@@ -43,7 +43,7 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 		} else {
 			verdict = cpp.Run(boxId, runReq, handler)
 		}
-	case "python":
+	case "py":
 		var py languages.Python
 		verdict, err = py.Compile(boxId, runReq)
 		if err != nil {
