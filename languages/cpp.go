@@ -33,8 +33,6 @@ func (p *CPP) Compile(boxId int, submission *structs.Submission) (structs.Verdic
 		"-std=gnu++23",
 		"-O2",
 		"-pipe",
-		"-Wall",
-		"-Wextra",
 		"-s",
 		cppFilePath,
 		"-o", outputBinary,
