@@ -6,11 +6,13 @@ type Testcase struct {
 }
 
 type Submission struct {
-	SubmissionId *int64     `json:"submission_id"`
-	ProblemId    *int64     `json:"problem_id"`
-	Language     string     `json:"language"`
-	SourceCode   string     `json:"source_code"`
-	Testcases    []Testcase `json:"testcases"`
-	Timelimit    float32    `json:"time_limit"`
-	MemoryLimit  float32    `json:"memory_limit"`
+	SubmissionId       *int64     `json:"submission_id"`
+	Language           string     `json:"language"`
+	SourceCode         string     `json:"source_code"`
+	Testcases          []Testcase `json:"testcases"`
+	Timelimit          float32    `json:"time_limit"`
+	MemoryLimit        float32    `json:"memory_limit"`
+	CheckerType        string     `json:"checker_type"`
+	CheckerStrictSpace bool       `json:"checker_strict_space"`
+	CheckerPrecision   *float32   `json:"checker_precision"`
 }

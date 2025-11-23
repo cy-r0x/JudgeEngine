@@ -18,7 +18,6 @@ import (
 
 type EngineData struct {
 	SubmissionId    int64    `json:"submission_id"`
-	ProblemId       int64    `json:"problem_id"`
 	Verdict         string   `json:"verdict"`
 	ExecutionTime   *float32 `json:"execution_time"`
 	ExecutionMemory *float32 `json:"execution_memory"`
@@ -34,10 +33,9 @@ var httpClient = &http.Client{
 	Timeout: 30 * time.Second,
 }
 
-func GenerateToken(submissionId int64, problemId int64, verdict string, execTime, execMem *float32, secret string) (*EnginePayload, error) {
+func GenerateToken(submissionId int64, verdict string, execTime, execMem *float32, secret string) (*EnginePayload, error) {
 	data := &EngineData{
 		SubmissionId:    submissionId,
-		ProblemId:       problemId,
 		Verdict:         verdict,
 		ExecutionTime:   execTime,
 		ExecutionMemory: execMem,
@@ -66,15 +64,14 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 		return
 	}
 
-	if verdict.Submission.SubmissionId == nil || verdict.Submission.ProblemId == nil {
-		log.Println("Error: submission_id or problem_id is nil")
+	if verdict.Submission.SubmissionId == nil {
+		log.Println("Error: submission_id is nil")
 		return
 	}
 
 	go func() {
 		payload, err := GenerateToken(
 			*(verdict.Submission.SubmissionId),
-			*(verdict.Submission.ProblemId),
 			verdict.Result,
 			verdict.MaxTime,
 			verdict.MaxRSS,

@@ -73,7 +73,7 @@ func (p *CPP) Run(boxId int, submission *structs.Submission, handler *handlers.H
 	outputPath := filepath.Join(boxPath, "out.txt")
 	metaPath := filepath.Join(boxPath, "meta.txt")
 
-	for i, test := range submission.Testcases {
+	for _, test := range submission.Testcases {
 		input := test.Input
 		output := test.ExpectedOutput
 
@@ -113,8 +113,12 @@ func (p *CPP) Run(boxId int, submission *structs.Submission, handler *handlers.H
 		if err := isolateCmd.Run(); err != nil {
 			log.Printf("Error running isolate command: %v", err)
 		}
-
-		handler.Compare(boxPath, &maxTime, &maxRSS, &finalResult, i)
+		switch submission.CheckerType {
+		case "float":
+			handler.CompareFloat()
+		default:
+			handler.Compare(boxPath, &maxTime, &maxRSS, &finalResult, submission.CheckerStrictSpace)
+		}
 
 		if finalResult != "ac" {
 			break
