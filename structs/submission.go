@@ -14,5 +14,5 @@ type Submission struct {
 	MemoryLimit        float32    `json:"memory_limit"`
 	CheckerType        string     `json:"checker_type"`
 	CheckerStrictSpace bool       `json:"checker_strict_space"`
-	CheckerPrecision   *float32   `json:"checker_precision"`
+	CheckerPrecision   *string    `json:"checker_precision"`
 }

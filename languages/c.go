@@ -115,7 +115,7 @@ func (p *C) Run(boxId int, submission *structs.Submission, handler *handlers.Han
 		}
 		switch submission.CheckerType {
 		case "float":
-			handler.CompareFloat()
+			handler.CompareFloat(boxPath, &maxTime, &maxRSS, &finalResult, submission.CheckerStrictSpace, submission.CheckerPrecision)
 		default:
 			handler.Compare(boxPath, &maxTime, &maxRSS, &finalResult, submission.CheckerStrictSpace)
 		}
