@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -14,6 +16,7 @@ type Server struct {
 	config    *config.Config
 	manager   *queue.Queue
 	scheduler *scheduler.Scheduler
+	httpServer *http.Server
 }
 
 func NewServer(config *config.Config, queue *queue.Queue, scheduler *scheduler.Scheduler) *Server {
@@ -32,9 +35,42 @@ func wrapMux(mux *http.ServeMux) http.Handler {
 	})
 }
 
-func (s *Server) Listen(port string) {
+func (s *Server) Listen(ctx context.Context, port string) error {
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 	wrapedMux := wrapMux(mux)
-	http.ListenAndServe(port, wrapedMux)
+
+	addr := port
+	if addr[0] != ':' {
+		addr = ":" + addr
+	}
+
+	s.httpServer = &http.Server{
+		Addr:         addr,
+		Handler:      wrapedMux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	errChan := make(chan error, 1)
+	go func() {
+		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errChan <- err
+		}
+	}()
+
+	select {
+	case err := <-errChan:
+		return fmt.Errorf("server error: %w", err)
+	case <-ctx.Done():
+		return nil
+	}
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.httpServer == nil {
+		return nil
+	}
+	return s.httpServer.Shutdown(ctx)
 }
