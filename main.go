@@ -20,7 +20,7 @@ func main() {
 	config := config.GetConfig()
 
 	queueManager := queue.NewQueue()
-	err := queueManager.InitQueue(config.QueueName, config.WorkerCount, config.RabbitMQURL)
+	err := queueManager.InitQueue(config)
 	if err != nil {
 		log.Fatalf("Failed to initialize queue: %v", err)
 	}

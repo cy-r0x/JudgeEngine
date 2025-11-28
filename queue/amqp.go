@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/judgenot0/judge-deamon/config"
 	"github.com/judgenot0/judge-deamon/scheduler"
 	"github.com/judgenot0/judge-deamon/structs"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -24,10 +25,10 @@ func NewQueue() *Queue {
 	return &Queue{}
 }
 
-func (q *Queue) InitQueue(queueName string, workerCount int, rabbitmqURL string) error {
-	q.queueName = queueName
-	q.rabbitmqURL = rabbitmqURL
-	q.workerCount = workerCount
+func (q *Queue) InitQueue(config *config.Config) error {
+	q.queueName = config.QueueName
+	q.rabbitmqURL = config.RabbitMQURL
+	q.workerCount = config.WorkerCount
 
 	return q.connect()
 }
