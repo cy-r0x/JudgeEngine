@@ -53,8 +53,8 @@ func loadConfig() Config {
 
 	config.HttpPort = os.Getenv("HTTP_PORT")
 	if config.HttpPort == "" {
-		config.HttpPort = "8000"
-		log.Println("HTTP_PORT not set, using default: 8000")
+		config.HttpPort = "8080"
+		log.Println("HTTP_PORT not set, using default: 8080")
 	}
 
 	config.EngineKey = os.Getenv("ENGINE_KEY")
