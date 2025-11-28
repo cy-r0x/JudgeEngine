@@ -84,10 +84,10 @@ func main() {
 		log.Println("[*] Shutdown timeout exceeded, forcing exit")
 	}
 
+	wg.Wait()
+
 	if err := queueManager.Close(); err != nil {
 		log.Printf("Error closing queue: %v", err)
 	}
-
-	wg.Wait()
 	log.Println("[*] Shutdown complete")
 }
