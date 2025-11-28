@@ -32,14 +32,14 @@ func main() {
 		log.Fatalf("Failed to initialize scheduler: %v", err)
 	}
 
-	server := cmd.NewServer(config, queueManager, scheduler)
+	notifierCtx, notifierCancel := context.WithCancel(context.Background())
+	defer notifierCancel()
+
+	server := cmd.NewServer(config, queueManager, scheduler, notifierCtx)
 	server.RegisterMetrics()
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	notifierCtx, notifierCancel := context.WithCancel(context.Background())
-	defer notifierCancel()
 
 	var wg sync.WaitGroup
 
@@ -56,7 +56,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		log.Printf("[*] Server Running at %s", config.HttpPort)
-		if err := server.Listen(notifierCtx, config.HttpPort); err != nil {
+		if err := server.Listen(config.HttpPort); err != nil {
 			log.Printf("HTTP server error: %v", err)
 		}
 	}()
@@ -70,7 +70,7 @@ func main() {
 
 	shutdownDone := make(chan struct{})
 	go func() {
-		if err := server.Shutdown(shutdownCtx); err != nil {
+		if err := server.Shutdown(); err != nil {
 			log.Printf("Error shutting down server: %v", err)
 		}
 		close(shutdownDone)

@@ -17,13 +17,15 @@ type Server struct {
 	manager    *queue.Queue
 	scheduler  *scheduler.Scheduler
 	httpServer *http.Server
+	ctx        context.Context
 }
 
-func NewServer(config *config.Config, queue *queue.Queue, scheduler *scheduler.Scheduler) *Server {
+func NewServer(config *config.Config, queue *queue.Queue, scheduler *scheduler.Scheduler, ctx context.Context) *Server {
 	return &Server{
 		config:    config,
 		manager:   queue,
 		scheduler: scheduler,
+		ctx:       ctx,
 	}
 }
 
@@ -35,7 +37,7 @@ func wrapMux(mux *http.ServeMux) http.Handler {
 	})
 }
 
-func (s *Server) Listen(ctx context.Context, port string) error {
+func (s *Server) Listen(port string) error {
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 	wrapedMux := wrapMux(mux)
@@ -63,14 +65,14 @@ func (s *Server) Listen(ctx context.Context, port string) error {
 	select {
 	case err := <-errChan:
 		return fmt.Errorf("server error: %w", err)
-	case <-ctx.Done():
+	case <-s.ctx.Done():
 		return nil
 	}
 }
 
-func (s *Server) Shutdown(ctx context.Context) error {
+func (s *Server) Shutdown() error {
 	if s.httpServer == nil {
 		return nil
 	}
-	return s.httpServer.Shutdown(ctx)
+	return s.httpServer.Shutdown(s.ctx)
 }
