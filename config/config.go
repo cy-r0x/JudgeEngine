@@ -12,6 +12,7 @@ import (
 type Config struct {
 	WorkerCount    int
 	QueueName      string
+	RabbitMQURL    string
 	HttpPort       string
 	EngineKey      string
 	ServerEndpoint string
@@ -42,6 +43,12 @@ func loadConfig() Config {
 	if config.QueueName == "" {
 		config.QueueName = "judge_queue"
 		log.Println("QUEUE_NAME not set, using default: judge_queue")
+	}
+
+	config.RabbitMQURL = os.Getenv("RABBITMQ_URL")
+	if config.RabbitMQURL == "" {
+		config.RabbitMQURL = "amqp://guest:guest@localhost:5672/"
+		log.Println("RABBITMQ_URL not set, using default: amqp://guest:guest@localhost:5672/")
 	}
 
 	config.HttpPort = os.Getenv("HTTP_PORT")

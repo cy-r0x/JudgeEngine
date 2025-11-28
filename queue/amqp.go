@@ -11,35 +11,48 @@ import (
 )
 
 type Queue struct {
-	msgs      <-chan amqp.Delivery
-	conn      *amqp.Connection
-	ch        *amqp.Channel
-	queueName string
+	msgs        <-chan amqp.Delivery
+	conn        *amqp.Connection
+	ch          *amqp.Channel
+	queueName   string
+	rabbitmqURL string
+	workerCount int
 }
 
 func NewQueue() *Queue {
 	return &Queue{}
 }
 
-func (q *Queue) InitQueue(queueName string, CPU_COUNT int) error {
+func (q *Queue) InitQueue(queueName string, workerCount int, rabbitmqURL string) error {
 	q.queueName = queueName
+	q.rabbitmqURL = rabbitmqURL
+	q.workerCount = workerCount
 
+	return q.connect()
+}
+
+func (q *Queue) connect() error {
 	var err error
-	q.conn, err = amqp.Dial("amqp://guest:guest@localhost:5672/")
+	q.conn, err = amqp.Dial(q.rabbitmqURL)
 	if err != nil {
-		log.Println(err)
+		log.Printf("Failed to connect to RabbitMQ: %v", err)
 		return err
 	}
 
 	q.ch, err = q.conn.Channel()
 	if err != nil {
-		log.Println(err)
+		log.Printf("Failed to open channel: %v", err)
+		if q.conn != nil {
+			q.conn.Close()
+		}
 		return err
 	}
 
-	err = q.ch.Qos(CPU_COUNT, 0, false)
+	err = q.ch.Qos(q.workerCount, 0, false)
 	if err != nil {
-		log.Println(err)
+		log.Printf("Failed to set QoS: %v", err)
+		q.ch.Close()
+		q.conn.Close()
 		return err
 	}
 
@@ -48,13 +61,52 @@ func (q *Queue) InitQueue(queueName string, CPU_COUNT int) error {
 	}
 	_, err = q.ch.QueueDeclare(q.queueName, true, false, false, false, args)
 	if err != nil {
-		log.Println(err)
+		log.Printf("Failed to declare queue: %v", err)
+		q.ch.Close()
+		q.conn.Close()
 		return err
 	}
+
 	return nil
 }
 
+func (q *Queue) reconnect() error {
+	log.Println("Attempting to reconnect to RabbitMQ...")
+
+	if q.ch != nil {
+		q.ch.Close()
+	}
+	if q.conn != nil {
+		q.conn.Close()
+	}
+
+	backoff := time.Second
+	maxBackoff := 30 * time.Second
+
+	for {
+		err := q.connect()
+		if err == nil {
+			log.Println("Successfully reconnected to RabbitMQ")
+			return nil
+		}
+
+		log.Printf("Reconnection failed, retrying in %v: %v", backoff, err)
+		time.Sleep(backoff)
+
+		backoff *= 2
+		if backoff > maxBackoff {
+			backoff = maxBackoff
+		}
+	}
+}
+
 func (q *Queue) QueueMessage(submission []byte) error {
+	if q.ch == nil || q.ch.IsClosed() {
+		if err := q.reconnect(); err != nil {
+			return err
+		}
+	}
+
 	err := q.ch.Publish(
 		"",
 		q.queueName,
@@ -65,54 +117,99 @@ func (q *Queue) QueueMessage(submission []byte) error {
 			Body:        submission,
 		},
 	)
+
+	if err != nil {
+		log.Printf("Failed to publish message, attempting reconnect: %v", err)
+		if reconnectErr := q.reconnect(); reconnectErr != nil {
+			return reconnectErr
+		}
+		err = q.ch.Publish(
+			"",
+			q.queueName,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        submission,
+			},
+		)
+	}
+
 	return err
 }
 
 func (q *Queue) StartConsume(scheduler *scheduler.Scheduler) error {
-	defer func() {
-		if q.ch != nil {
-			q.ch.Close()
-		}
-		if q.conn != nil {
-			q.conn.Close()
-		}
-	}()
-
-	var err error
-	q.msgs, err = q.ch.Consume(q.queueName, "", false, false, false, false, nil)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
-
-	for d := range q.msgs {
-		select {
-		case slave := <-scheduler.WorkChannel:
-			var submission structs.Submission
-			err := json.Unmarshal(d.Body, &submission)
-			if err != nil {
-				log.Printf("Raw body: %s", string(d.Body))
-				log.Printf("Invalid message body: %v", err)
-				d.Nack(false, false)
+	for {
+		if q.ch == nil || q.ch.IsClosed() || q.conn == nil || q.conn.IsClosed() {
+			if err := q.reconnect(); err != nil {
+				log.Printf("Failed to reconnect, retrying: %v", err)
+				time.Sleep(5 * time.Second)
 				continue
 			}
+		}
 
-			go func(delivery amqp.Delivery, worker structs.Worker, sub structs.Submission) {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Printf("Panic in scheduler.Work: %v", r)
-						delivery.Nack(false, true)
-						scheduler.WorkChannel <- worker
-					}
-				}()
-				scheduler.Work(worker, sub, delivery)
-			}(d, slave, submission)
+		var err error
+		q.msgs, err = q.ch.Consume(q.queueName, "", false, false, false, false, nil)
+		if err != nil {
+			log.Printf("Failed to start consuming: %v, attempting reconnect", err)
+			time.Sleep(5 * time.Second)
+			if reconnectErr := q.reconnect(); reconnectErr != nil {
+				log.Printf("Reconnection failed: %v", reconnectErr)
+				time.Sleep(5 * time.Second)
+			}
+			continue
+		}
 
-		case <-time.After(5 * time.Minute):
-			log.Println("Warning: No workers available for 5 minutes, message will be redelivered")
-			d.Nack(false, true)
+		log.Println("Started consuming messages from queue")
+
+		for d := range q.msgs {
+			select {
+			case worker := <-scheduler.WorkChannel:
+				var submission structs.Submission
+				err := json.Unmarshal(d.Body, &submission)
+				if err != nil {
+					log.Printf("Raw body: %s", string(d.Body))
+					log.Printf("Invalid message body: %v", err)
+					d.Nack(false, false)
+					continue
+				}
+
+				go func(delivery amqp.Delivery, w structs.Worker, sub structs.Submission) {
+					defer func() {
+						if r := recover(); r != nil {
+							log.Printf("Panic in scheduler.Work: %v", r)
+							delivery.Nack(false, true)
+							scheduler.WorkChannel <- w
+						}
+					}()
+					scheduler.Work(w, sub, delivery)
+				}(d, worker, submission)
+
+			case <-time.After(5 * time.Minute):
+				log.Println("Warning: No workers available for 5 minutes, message will be redelivered")
+				d.Nack(false, true)
+			}
+		}
+
+		log.Println("Message channel closed, attempting to reconnect...")
+		time.Sleep(5 * time.Second)
+	}
+}
+
+func (q *Queue) Close() error {
+	var errs []error
+	if q.ch != nil {
+		if err := q.ch.Close(); err != nil {
+			errs = append(errs, err)
 		}
 	}
-
+	if q.conn != nil {
+		if err := q.conn.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		return errs[0]
+	}
 	return nil
 }

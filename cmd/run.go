@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/judgenot0/judge-deamon/handlers"
-	"github.com/judgenot0/judge-deamon/languages"
+	"github.com/judgenot0/judge-deamon/scheduler"
 	"github.com/judgenot0/judge-deamon/structs"
 	"github.com/judgenot0/judge-deamon/utils"
 )
@@ -21,26 +21,17 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 	if runReq.SourceCode == "" {
 		return "ce"
 	}
-	var verdict structs.Verdict
-	var err error
-	var runner interface {
-		Compile(boxId int, runReq *structs.Submission) (structs.Verdict, error)
-		Run(boxId int, runReq *structs.Submission, handler *handlers.Handler) structs.Verdict
-	}
-	switch runReq.Language {
-	case "c":
-		runner = &languages.C{}
-	case "cpp":
-		runner = &languages.CPP{}
-	case "py":
-		runner = &languages.Python{}
-	default:
+
+	runner := scheduler.GetRunner(runReq.Language)
+	if runner == nil {
 		return "ce"
 	}
-	verdict, err = runner.Compile(boxId, runReq)
+
+	verdict, err := runner.Compile(boxId, runReq)
 	if err != nil {
 		return "ce"
 	}
+
 	verdict = runner.Run(boxId, runReq, handler)
 	return verdict.Result
 }
