@@ -35,11 +35,11 @@ func main() {
 	server := cmd.NewServer(config, queueManager, scheduler)
 	server.RegisterMetrics()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	notifierCtx, notifierCancel := context.WithCancel(context.Background())
+	defer notifierCancel()
 
 	var wg sync.WaitGroup
 
@@ -47,7 +47,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		log.Println("[*] Waiting for messages. To exit press CTRL+C")
-		if err := queueManager.StartConsume(ctx, scheduler); err != nil {
+		if err := queueManager.StartConsume(notifierCtx, scheduler); err != nil {
 			log.Printf("Queue consumer stopped: %v", err)
 		}
 	}()
@@ -56,15 +56,14 @@ func main() {
 	go func() {
 		defer wg.Done()
 		log.Printf("[*] Server Running at %s", config.HttpPort)
-		if err := server.Listen(ctx, config.HttpPort); err != nil {
+		if err := server.Listen(notifierCtx, config.HttpPort); err != nil {
 			log.Printf("HTTP server error: %v", err)
 		}
 	}()
 
 	<-sigChan
 	log.Println("\n[*] Shutting down gracefully...")
-
-	cancel()
+	notifierCancel()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer shutdownCancel()
@@ -89,5 +88,6 @@ func main() {
 	if err := queueManager.Close(); err != nil {
 		log.Printf("Error closing queue: %v", err)
 	}
+
 	log.Println("[*] Shutdown complete")
 }

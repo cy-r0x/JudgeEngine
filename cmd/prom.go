@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"log"
 	"net/http"
 	"time"
 
@@ -113,7 +112,6 @@ func (m *SystemMetrics) Collect() {
 
 func (s *Server) RegisterMetrics() {
 	node := s.RegisterNode()
-	log.Println(node)
 	sysMetrics := newSystemMetrics(node)
 	sysMetrics.Collect()
 }

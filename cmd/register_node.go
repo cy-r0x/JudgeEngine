@@ -57,7 +57,6 @@ func (s *Server) RegisterNode() string {
 	}
 
 	log.Println("Node added to cluster")
-	log.Println(registeredNode)
 	_ = resp.Body.Close()
 	return registeredNode.Labels["node"]
 }

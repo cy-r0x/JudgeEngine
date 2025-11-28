@@ -13,9 +13,9 @@ import (
 )
 
 type Server struct {
-	config    *config.Config
-	manager   *queue.Queue
-	scheduler *scheduler.Scheduler
+	config     *config.Config
+	manager    *queue.Queue
+	scheduler  *scheduler.Scheduler
 	httpServer *http.Server
 }
 

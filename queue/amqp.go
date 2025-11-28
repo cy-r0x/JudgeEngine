@@ -142,13 +142,6 @@ func (q *Queue) QueueMessage(submission []byte) error {
 
 func (q *Queue) StartConsume(ctx context.Context, scheduler *scheduler.Scheduler) error {
 	for {
-		select {
-		case <-ctx.Done():
-			log.Println("Context cancelled, stopping consumer")
-			return nil
-		default:
-		}
-
 		if q.ch == nil || q.ch.IsClosed() || q.conn == nil || q.conn.IsClosed() {
 			if err := q.reconnect(); err != nil {
 				log.Printf("Failed to reconnect, retrying: %v", err)
@@ -169,37 +162,54 @@ func (q *Queue) StartConsume(ctx context.Context, scheduler *scheduler.Scheduler
 			continue
 		}
 
-		log.Println("Started consuming messages from queue")
+		log.Println("[*] Started consuming messages from queue")
 
-		for d := range q.msgs {
+	messageLoop:
+		for {
 			select {
 			case <-ctx.Done():
 				log.Println("Context cancelled, stopping consumer loop")
 				return nil
-			case worker := <-scheduler.WorkChannel:
-				var submission structs.Submission
-				err := json.Unmarshal(d.Body, &submission)
-				if err != nil {
-					log.Printf("Raw body: %s", string(d.Body))
-					log.Printf("Invalid message body: %v", err)
-					d.Nack(false, false)
-					continue
+			case d, ok := <-q.msgs:
+				if !ok {
+					log.Println("Message channel closed")
+					break messageLoop
 				}
 
-				go func(delivery amqp.Delivery, w structs.Worker, sub structs.Submission) {
-					defer func() {
-						if r := recover(); r != nil {
-							log.Printf("Panic in scheduler.Work: %v", r)
-							delivery.Nack(false, true)
-							scheduler.WorkChannel <- w
-						}
-					}()
-					scheduler.Work(w, sub, delivery)
-				}(d, worker, submission)
+				select {
 
-			case <-time.After(5 * time.Minute):
-				log.Println("Warning: No workers available for 5 minutes, message will be redelivered")
-				d.Nack(false, true)
+				case <-ctx.Done():
+					log.Println("Context cancelled, nacking message and stopping")
+					d.Nack(false, true)
+					return nil
+
+				case worker := <-scheduler.WorkChannel:
+					
+					var submission structs.Submission
+					err := json.Unmarshal(d.Body, &submission)
+					if err != nil {
+						log.Printf("Raw body: %s", string(d.Body))
+						log.Printf("Invalid message body: %v", err)
+						d.Nack(false, false)
+						scheduler.WorkChannel <- worker
+						continue
+					}
+
+					go func(delivery amqp.Delivery, w structs.Worker, sub structs.Submission) {
+						defer func() {
+							if r := recover(); r != nil {
+								log.Printf("Panic in scheduler.Work: %v", r)
+								delivery.Nack(false, true)
+								scheduler.WorkChannel <- w
+							}
+						}()
+						scheduler.Work(w, sub, delivery)
+					}(d, worker, submission)
+
+				case <-time.After(5 * time.Minute):
+					log.Println("Warning: No workers available for 5 minutes, message will be redelivered")
+					d.Nack(false, true)
+				}
 			}
 		}
 
