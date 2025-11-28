@@ -73,7 +73,7 @@ func (p *CPP) Run(boxId int, submission *structs.Submission, handler *handlers.H
 	outputPath := filepath.Join(boxPath, "out.txt")
 	metaPath := filepath.Join(boxPath, "meta.txt")
 
-	for _, test := range submission.Testcases {
+	for i, test := range submission.Testcases {
 		input := test.Input
 		output := test.ExpectedOutput
 
@@ -121,6 +121,8 @@ func (p *CPP) Run(boxId int, submission *structs.Submission, handler *handlers.H
 		}
 
 		if finalResult != "ac" {
+			log.Printf("Testcase %d failed. Final result: %s", i+1, finalResult)
+			fmt.Println(test.Input, test.ExpectedOutput)
 			break
 		}
 	}

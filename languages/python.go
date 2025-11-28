@@ -89,6 +89,12 @@ func (p *Python) Run(boxId int, submission *structs.Submission, handler *handler
 		}
 
 		if finalResult != "ac" {
+			data, err := os.ReadFile(outputPath)
+			if err != nil {
+				log.Printf("Error reading output file for debugging: %v", err)
+			} else {
+				log.Printf("Output for debugging:\n%s", string(data))
+			}
 			break
 		}
 	}
