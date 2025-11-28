@@ -1,6 +1,7 @@
 package queue
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"time"
@@ -138,8 +139,15 @@ func (q *Queue) QueueMessage(submission []byte) error {
 	return err
 }
 
-func (q *Queue) StartConsume(scheduler *scheduler.Scheduler) error {
+func (q *Queue) StartConsume(ctx context.Context, scheduler *scheduler.Scheduler) error {
 	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Context cancelled, stopping consumer")
+			return nil
+		default:
+		}
+
 		if q.ch == nil || q.ch.IsClosed() || q.conn == nil || q.conn.IsClosed() {
 			if err := q.reconnect(); err != nil {
 				log.Printf("Failed to reconnect, retrying: %v", err)
@@ -164,6 +172,9 @@ func (q *Queue) StartConsume(scheduler *scheduler.Scheduler) error {
 
 		for d := range q.msgs {
 			select {
+			case <-ctx.Done():
+				log.Println("Context cancelled, stopping consumer loop")
+				return nil
 			case worker := <-scheduler.WorkChannel:
 				var submission structs.Submission
 				err := json.Unmarshal(d.Body, &submission)

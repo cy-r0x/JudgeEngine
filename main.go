@@ -47,7 +47,9 @@ func main() {
 	go func() {
 		defer wg.Done()
 		log.Println("[*] Waiting for messages. To exit press CTRL+C")
-		queueManager.StartConsume(scheduler)
+		if err := queueManager.StartConsume(ctx, scheduler); err != nil {
+			log.Printf("Queue consumer stopped: %v", err)
+		}
 	}()
 
 	wg.Add(1)
