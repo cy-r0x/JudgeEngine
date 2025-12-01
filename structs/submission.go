@@ -10,7 +10,7 @@ type Submission struct {
 	Language           string     `json:"language"`
 	SourceCode         string     `json:"source_code"`
 	Testcases          []Testcase `json:"testcases"`
-	Timelimit          float32    `json:"time_limit"`
+	TimeLimit          float32    `json:"time_limit"`
 	MemoryLimit        float32    `json:"memory_limit"`
 	CheckerType        string     `json:"checker_type"`
 	CheckerStrictSpace bool       `json:"checker_strict_space"`
