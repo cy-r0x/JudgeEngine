@@ -64,12 +64,13 @@ func (p *Python) Run(boxId int, submission *structs.Submission, handler *handler
 
 		isolateCmd := exec.Command("isolate",
 			fmt.Sprintf("--box-id=%d", boxId),
+			"--cg",
 			"--stdin=in.txt",
 			"--stdout=out.txt",
 			fmt.Sprintf("--time=%.3f", submission.TimeLimit),
 			fmt.Sprintf("--wall-time=%.3f", (submission.TimeLimit)*1.5),
 			"--fsize=10240",
-			fmt.Sprintf("--mem=%d", int(memLimit)),
+			fmt.Sprintf("--cg-mem=%d", int(memLimit)),
 			fmt.Sprintf("--meta=%s", metaPath),
 			"--run",
 			"--",
@@ -77,9 +78,7 @@ func (p *Python) Run(boxId int, submission *structs.Submission, handler *handler
 			"main.py",
 		)
 
-		if err := isolateCmd.Run(); err != nil {
-			log.Printf("Error running isolate command: %v", err)
-		}
+		_ = isolateCmd.Run()
 
 		switch submission.CheckerType {
 		case "float":
@@ -89,12 +88,6 @@ func (p *Python) Run(boxId int, submission *structs.Submission, handler *handler
 		}
 
 		if finalResult != "ac" {
-			data, err := os.ReadFile(outputPath)
-			if err != nil {
-				log.Printf("Error reading output file for debugging: %v", err)
-			} else {
-				log.Printf("Output for debugging:\n%s", string(data))
-			}
 			break
 		}
 	}

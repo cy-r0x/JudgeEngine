@@ -47,7 +47,7 @@ func (mngr *Scheduler) With(workerCount int) error {
 
 	initialized := 0
 	for i := 0; i < workerCount; i++ {
-		cmd := exec.Command("isolate", fmt.Sprintf("--box-id=%d", i), "--init")
+		cmd := exec.Command("isolate", fmt.Sprintf("--box-id=%d", i), "--cg", "--init")
 		if err := cmd.Run(); err != nil {
 			log.Printf("Error initializing sandbox for worker %d: %v", i, err)
 			continue
@@ -79,7 +79,7 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 			shouldNack = true
 		}
 
-		cmd := exec.Command("isolate", fmt.Sprintf("--box-id=%d", w.Id), "--init")
+		cmd := exec.Command("isolate", fmt.Sprintf("--box-id=%d", w.Id), "--cg", "--init")
 		if err := cmd.Run(); err != nil {
 			log.Printf("Error cleaning up sandbox %d: %v", w.Id, err)
 		}

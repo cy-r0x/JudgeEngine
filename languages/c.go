@@ -98,21 +98,20 @@ func (p *C) Run(boxId int, submission *structs.Submission, handler *handlers.Han
 		memLimit := submission.MemoryLimit * 1024
 		isolateCmd := exec.Command("isolate",
 			fmt.Sprintf("--box-id=%d", boxId),
+			"--cg",
 			"--stdin=in.txt",
 			"--stdout=out.txt",
 			fmt.Sprintf("--time=%.3f", submission.TimeLimit),
 			fmt.Sprintf("--wall-time=%.3f", (submission.TimeLimit)*1.5),
 			"--fsize=10240",
-			fmt.Sprintf("--mem=%d", int(memLimit)),
+			fmt.Sprintf("--cg-mem=%d", int(memLimit)),
 			fmt.Sprintf("--meta=%s", metaPath),
 			"--run",
 			"--",
 			"./main",
 		)
 
-		if err := isolateCmd.Run(); err != nil {
-			log.Printf("Error running isolate command: %v", err)
-		}
+		_ = isolateCmd.Run()
 		switch submission.CheckerType {
 		case "float":
 			handler.CompareFloat(boxPath, &maxTime, &maxRSS, &finalResult, submission.CheckerStrictSpace, submission.CheckerPrecision)

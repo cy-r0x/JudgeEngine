@@ -11,7 +11,7 @@ import (
 func (h *Handler) parseMeta(boxPath string, maxTime *float32, maxRSS *float32, finalResult *string) (outputPath, expectedOutputPath string, shouldReturn bool) {
 	metaPath := filepath.Join(boxPath, "meta.txt")
 	outputPath = filepath.Join(boxPath, "out.txt")
-	expectedOutputPath = filepath.Join(boxPath, "expOut.txt")
+	expectedOutputPath = filepath.Join(boxPath, "expOut. txt")
 
 	metaContent, err := os.ReadFile(metaPath)
 	if err != nil {
@@ -41,6 +41,14 @@ func (h *Handler) parseMeta(boxPath string, maxTime *float32, maxRSS *float32, f
 			if v, err := strconv.Atoi(value); err == nil {
 				meta.Killed = v
 			}
+		case "exitcode":
+			if v, err := strconv.Atoi(value); err == nil {
+				meta.ExitCode = v
+			}
+		case "exitsig":
+			if v, err := strconv.Atoi(value); err == nil {
+				meta.ExitSig = v
+			}
 		case "time":
 			if v, err := strconv.ParseFloat(value, 32); err == nil {
 				meta.Time = float32(v)
@@ -53,6 +61,22 @@ func (h *Handler) parseMeta(boxPath string, maxTime *float32, maxRSS *float32, f
 			if v, err := strconv.ParseFloat(value, 32); err == nil {
 				meta.Max_RSS = float32(v)
 			}
+		case "cg-mem":
+			if v, err := strconv.ParseFloat(value, 32); err == nil {
+				meta.CG_Mem = float32(v)
+			}
+		case "cg-oom-killed":
+			if v, err := strconv.Atoi(value); err == nil {
+				meta.CG_OOM_Killed = v
+			}
+		case "csw-voluntary":
+			if v, err := strconv.Atoi(value); err == nil {
+				meta.CSW_Voluntary = v
+			}
+		case "csw-forced":
+			if v, err := strconv.Atoi(value); err == nil {
+				meta.CSW_Forced = v
+			}
 		}
 	}
 
@@ -63,6 +87,23 @@ func (h *Handler) parseMeta(boxPath string, maxTime *float32, maxRSS *float32, f
 		*maxRSS = meta.Max_RSS
 	}
 
+	// Priority 1: Check for OOM kill (Memory Limit Exceeded)
+	if meta.CG_OOM_Killed == 1 {
+		*finalResult = "mle"
+		return "", "", true
+	}
+
+	// Priority 2: Check if killed by sandbox (time/memory limit)
+	if meta.Killed == 1 {
+		// If killed is present, check the status to determine why
+		if meta.Status == "TO" {
+			*finalResult = "tle"
+			return "", "", true
+		}
+		// Other kill reasons would fall through to status check
+	}
+
+	// Priority 3: Check status codes
 	if meta.Status != "" {
 		switch meta.Status {
 		case "RE":
@@ -77,6 +118,14 @@ func (h *Handler) parseMeta(boxPath string, maxTime *float32, maxRSS *float32, f
 		return "", "", true
 	}
 
+	// Priority 4: Check for non-zero exit code (runtime error without status)
+	// This handles cases where program exits with error but no status is set
+	if meta.ExitCode != 0 {
+		*finalResult = "re"
+		return "", "", true
+	}
+
+	// All checks passed - program executed successfully, proceed to output comparison
 	if _, err := os.Stat(outputPath); os.IsNotExist(err) {
 		log.Printf("Output file does not exist: %s", outputPath)
 		*finalResult = "ie"
