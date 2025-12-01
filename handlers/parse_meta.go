@@ -11,7 +11,7 @@ import (
 func (h *Handler) parseMeta(boxPath string, maxTime *float32, maxRSS *float32, finalResult *string) (outputPath, expectedOutputPath string, shouldReturn bool) {
 	metaPath := filepath.Join(boxPath, "meta.txt")
 	outputPath = filepath.Join(boxPath, "out.txt")
-	expectedOutputPath = filepath.Join(boxPath, "expOut. txt")
+	expectedOutputPath = filepath.Join(boxPath, "expOut.txt")
 
 	metaContent, err := os.ReadFile(metaPath)
 	if err != nil {
