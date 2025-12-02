@@ -30,12 +30,14 @@ func (p *C) Compile(boxId int, submission *structs.Submission) (structs.Verdict,
 
 	output, err := exec.Command(
 		"gcc",
-		"-std=gnu11",
+		"--std=gnu11",
 		"-O2",
 		"-pipe",
 		"-s",
+		"-w",
 		cFilePath,
 		"-o", outputBinary,
+		"-lm",
 	).CombinedOutput()
 
 	if err != nil {

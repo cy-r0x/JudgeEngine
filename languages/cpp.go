@@ -30,12 +30,14 @@ func (p *CPP) Compile(boxId int, submission *structs.Submission) (structs.Verdic
 
 	output, err := exec.Command(
 		"g++",
-		"-std=gnu++23",
+		"--std=gnu++23",
 		"-O2",
 		"-pipe",
 		"-s",
+		"-w",
 		cppFilePath,
 		"-o", outputBinary,
+		"-lm",
 	).CombinedOutput()
 
 	if err != nil {
