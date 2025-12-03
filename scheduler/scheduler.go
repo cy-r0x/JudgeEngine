@@ -102,6 +102,10 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 		mngr.WorkChannel <- w
 	}()
 
+	mngr.processWork(w, submission, d, &shouldAck, &shouldNack)
+}
+
+func (mngr *Scheduler) processWork(w structs.Worker, submission structs.Submission, d amqp.Delivery, shouldAck *bool, shouldNack *bool) {
 	if submission.Language == "" {
 		log.Printf("Missing language in submission")
 		verdict := structs.Verdict{
@@ -109,7 +113,7 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 			Result:     "ce",
 		}
 		mngr.Handler.ProduceVerdict(&verdict)
-		shouldAck = true
+		*shouldAck = true
 		return
 	}
 
@@ -120,7 +124,7 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 			Result:     "ce",
 		}
 		mngr.Handler.ProduceVerdict(&verdict)
-		shouldAck = true
+		*shouldAck = true
 		return
 	}
 
@@ -132,7 +136,7 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 			Result:     "ce",
 		}
 		mngr.Handler.ProduceVerdict(&verdict)
-		shouldAck = true
+		*shouldAck = true
 		return
 	}
 
@@ -140,7 +144,7 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 	if err != nil {
 		if verdict.Result == "ce" {
 			mngr.Handler.ProduceVerdict(&verdict)
-			shouldAck = true
+			*shouldAck = true
 		} else {
 			log.Printf("Compilation error for submission %d: %v", getSubmissionID(submission), err)
 			verdict = structs.Verdict{
@@ -148,14 +152,14 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 				Result:     "ce",
 			}
 			mngr.Handler.ProduceVerdict(&verdict)
-			shouldAck = true
+			*shouldAck = true
 		}
 		return
 	}
 
 	verdict = runner.Run(w.Id, &submission, mngr.Handler)
 	mngr.Handler.ProduceVerdict(&verdict)
-	shouldAck = true
+	*shouldAck = true
 }
 
 func getSubmissionID(submission structs.Submission) int64 {
