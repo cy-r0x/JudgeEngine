@@ -38,6 +38,10 @@ func wrapMux(mux *http.ServeMux) http.Handler {
 }
 
 func (s *Server) Listen(port string) error {
+	if port == "" {
+		return fmt.Errorf("listen port is empty")
+	}
+
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 	wrapedMux := wrapMux(mux)
