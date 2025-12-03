@@ -19,6 +19,7 @@ type Queue struct {
 	queueName   string
 	rabbitmqURL string
 	workerCount int
+	ctx         context.Context
 }
 
 func NewQueue() *Queue {
@@ -86,6 +87,14 @@ func (q *Queue) reconnect() error {
 	maxBackoff := 30 * time.Second
 
 	for {
+		if q.ctx != nil {
+			select {
+			case <-q.ctx.Done():
+				return q.ctx.Err()
+			default:
+			}
+		}
+
 		err := q.connect()
 		if err == nil {
 			log.Println("Successfully reconnected to RabbitMQ")
@@ -93,7 +102,18 @@ func (q *Queue) reconnect() error {
 		}
 
 		log.Printf("Reconnection failed, retrying in %v: %v", backoff, err)
-		time.Sleep(backoff)
+
+		if q.ctx != nil {
+			timer := time.NewTimer(backoff)
+			select {
+			case <-timer.C:
+			case <-q.ctx.Done():
+				timer.Stop()
+				return q.ctx.Err()
+			}
+		} else {
+			time.Sleep(backoff)
+		}
 
 		backoff *= 2
 		if backoff > maxBackoff {
@@ -141,6 +161,7 @@ func (q *Queue) QueueMessage(submission []byte) error {
 }
 
 func (q *Queue) StartConsume(ctx context.Context, scheduler *scheduler.Scheduler) error {
+	q.ctx = ctx
 	for {
 		if q.ch == nil || q.ch.IsClosed() || q.conn == nil || q.conn.IsClosed() {
 			if err := q.reconnect(); err != nil {

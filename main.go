@@ -19,6 +19,9 @@ import (
 func main() {
 	config := config.GetConfig()
 
+	notifierCtx, notifierCancel := context.WithCancel(context.Background())
+	defer notifierCancel()
+
 	queueManager := queue.NewQueue()
 	err := queueManager.InitQueue(config)
 	if err != nil {
@@ -31,9 +34,6 @@ func main() {
 	if err := scheduler.With(config.WorkerCount); err != nil {
 		log.Fatalf("Failed to initialize scheduler: %v", err)
 	}
-
-	notifierCtx, notifierCancel := context.WithCancel(context.Background())
-	defer notifierCancel()
 
 	server := cmd.NewServer(config, queueManager, scheduler, notifierCtx)
 	server.RegisterMetrics()
