@@ -36,6 +36,8 @@ func GetRunner(language string) Runner {
 		return &languages.CPP{}
 	case "py":
 		return &languages.Python{}
+	case "js", "javascript", "node", "nodejs":
+		return &languages.NodeJS{}
 	default:
 		return nil
 	}
