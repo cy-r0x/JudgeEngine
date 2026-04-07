@@ -97,6 +97,7 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+payload.AccessToken)
 
 		resp, err := httpClient.Do(req)
 		if err != nil {
