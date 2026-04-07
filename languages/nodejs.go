@@ -16,12 +16,15 @@ type NodeJS struct {
 }
 
 func resolveNodeBinary() (string, error) {
-	nodeBinary, err := exec.LookPath("node")
-	if err != nil {
-		return "", errors.New("node executable not found")
+	if _, err := os.Stat("/usr/bin/node"); err == nil {
+		return "/usr/bin/node", nil
 	}
 
-	return nodeBinary, nil
+	if _, err := os.Stat("/usr/bin/nodejs"); err == nil {
+		return "/usr/bin/nodejs", nil
+	}
+
+	return "", errors.New("system node executable not found at /usr/bin/node or /usr/bin/nodejs")
 }
 
 func (p *NodeJS) Compile(boxId int, submission *structs.Submission) (structs.Verdict, error) {
@@ -108,6 +111,7 @@ func (p *NodeJS) Run(boxId int, submission *structs.Submission, handler *handler
 		isolateCmd := exec.Command("isolate",
 			fmt.Sprintf("--box-id=%d", boxId),
 			"--cg",
+			"--processes=16",
 			"--stdin=in.txt",
 			"--stdout=out.txt",
 			fmt.Sprintf("--time=%.3f", submission.TimeLimit),
