@@ -95,7 +95,7 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict, ackStatus *bool) {
 	}
 
 	endpoint := strings.TrimSuffix(h.Config.ServerEndpoint, "/")
-	url := fmt.Sprintf("%s/api/submission", endpoint)
+	url := fmt.Sprintf("%s/api/submissions", endpoint)
 
 	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonData))
 	if err != nil {

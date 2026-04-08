@@ -91,7 +91,7 @@ func (mngr *Scheduler) Work(ctx context.Context, w structs.Worker, submission *s
 			log.Printf("Error reinitializing sandbox %d: %v", w.Id, err)
 		}
 		if !ackStatus {
-			if err := d.Nack(false, true); err != nil {
+			if err := d.Nack(false, false); err != nil {
 				log.Printf("Error nacking message: %v", err)
 			}
 		} else {

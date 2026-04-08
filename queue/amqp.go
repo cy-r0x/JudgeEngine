@@ -59,8 +59,36 @@ func (q *Queue) connect() error {
 		return err
 	}
 
+	dlxName := q.queueName + "_dlx"
+	err = q.ch.ExchangeDeclare(dlxName, "direct", true, false, false, false, nil)
+	if err != nil {
+		log.Printf("Failed to declare DLX: %v", err)
+		q.ch.Close()
+		q.conn.Close()
+		return err
+	}
+
+	dlqName := q.queueName + "_dlq"
+	_, err = q.ch.QueueDeclare(dlqName, true, false, false, false, amqp.Table{"x-queue-type": "quorum"})
+	if err != nil {
+		log.Printf("Failed to declare DLQ: %v", err)
+		q.ch.Close()
+		q.conn.Close()
+		return err
+	}
+
+	err = q.ch.QueueBind(dlqName, q.queueName, dlxName, false, nil)
+	if err != nil {
+		log.Printf("Failed to bind DLQ to DLX: %v", err)
+		q.ch.Close()
+		q.conn.Close()
+		return err
+	}
+
 	args := amqp.Table{
-		"x-queue-type": "quorum",
+		"x-queue-type":              "quorum",
+		"x-dead-letter-exchange":    dlxName,
+		"x-dead-letter-routing-key": q.queueName,
 	}
 	_, err = q.ch.QueueDeclare(q.queueName, true, false, false, false, args)
 	if err != nil {
@@ -71,6 +99,88 @@ func (q *Queue) connect() error {
 	}
 
 	return nil
+}
+
+func (q *Queue) StartDLQProcessor(ctx context.Context) {
+	// Requeue interval
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	dlqName := q.queueName + "_dlq"
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Stopping DLQ processor")
+			return
+		case <-ticker.C:
+			// Ensure connection
+			if q.ch == nil || q.ch.IsClosed() {
+				continue
+			}
+
+			// Get messages one by one
+			for {
+				msg, ok, err := q.ch.Get(dlqName, false)
+				if err != nil {
+					log.Printf("Error fetching from DLQ: %v", err)
+					break
+				}
+				if !ok {
+					// No more messages
+					break
+				}
+
+				var retryCount int32
+				if msg.Headers != nil {
+					if count, ok := msg.Headers["x-retry-count"].(int32); ok {
+						retryCount = count
+					}
+				}
+
+				if retryCount >= 5 {
+					bodyLimit := 100
+					if len(msg.Body) < bodyLimit {
+						bodyLimit = len(msg.Body)
+					}
+					log.Printf("Message exceeded max retries (5). Dropping permanently. Body snippet: %s", string(msg.Body[:bodyLimit]))
+					msg.Ack(false)
+					continue
+				}
+
+				headers := msg.Headers
+				if headers == nil {
+					headers = make(amqp.Table)
+				}
+				headers["x-retry-count"] = retryCount + 1
+
+				// Requeue to main queue
+				err = q.ch.Publish(
+					"",
+					q.queueName,
+					false,
+					false,
+					amqp.Publishing{
+						Headers:      headers,
+						ContentType:  msg.ContentType,
+						Body:         msg.Body,
+						DeliveryMode: msg.DeliveryMode,
+					},
+				)
+
+				if err != nil {
+					log.Printf("Error requeuing message from DLQ: %v", err)
+					// Nack back to DLQ if we can't republish
+					msg.Nack(false, true)
+					break
+				} else {
+					log.Printf("Successfully requeued a message from DLQ")
+					// Ack from DLQ
+					msg.Ack(false)
+				}
+			}
+		}
+	}
 }
 
 func (q *Queue) reconnect() error {
@@ -184,6 +294,7 @@ func (q *Queue) StartConsume(ctx context.Context, scheduler *scheduler.Scheduler
 		}
 
 		log.Println("[*] Started consuming messages from queue")
+		go q.StartDLQProcessor(ctx)
 
 	messageLoop:
 		for {
@@ -200,8 +311,8 @@ func (q *Queue) StartConsume(ctx context.Context, scheduler *scheduler.Scheduler
 				select {
 
 				case <-ctx.Done():
-					log.Println("Context cancelled, nacking message and stopping")
-					d.Nack(false, true)
+					log.Println("Context cancelled, nacking message to DLQ and stopping")
+					d.Nack(false, false)
 					return nil
 
 				case worker := <-scheduler.WorkChannel:
@@ -221,8 +332,8 @@ func (q *Queue) StartConsume(ctx context.Context, scheduler *scheduler.Scheduler
 					}(d, worker, &submission)
 
 				case <-time.After(5 * time.Minute):
-					log.Println("Warning: No workers available for 5 minutes, message will be redelivered")
-					d.Nack(false, true)
+					log.Println("Warning: No workers available for 5 minutes, message sent to DLQ")
+					d.Nack(false, false)
 				}
 			}
 		}
