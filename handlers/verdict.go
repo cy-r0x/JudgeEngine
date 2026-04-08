@@ -97,9 +97,9 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict, ackStatus *bool) {
 	endpoint := strings.TrimSuffix(h.Config.ServerEndpoint, "/")
 	url := fmt.Sprintf("%s/api/submissions", endpoint)
 
-	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(http.MethodPatch, url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Println("Error creating PUT request:", err)
+		log.Println("Error creating PATCH request:", err)
 		*ackStatus = false
 		return
 	}
@@ -108,7 +108,7 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict, ackStatus *bool) {
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		log.Println("Error sending PUT request:", err)
+		log.Println("Error sending PATCH request:", err)
 		*ackStatus = false
 		return
 	}
@@ -121,12 +121,12 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict, ackStatus *bool) {
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		log.Printf("PUT request failed with status %d: %s", resp.StatusCode, string(bodyResp))
+		log.Printf("PATCH request failed with status %d: %s", resp.StatusCode, string(bodyResp))
 		*ackStatus = false
 		return
 	}
 
-	log.Printf("PUT response status: %s", resp.Status)
-	log.Printf("PUT response body: %s", string(bodyResp))
+	log.Printf("PATCH response status: %s", resp.Status)
+	log.Printf("PATCH response body: %s", string(bodyResp))
 	*ackStatus = true
 }
