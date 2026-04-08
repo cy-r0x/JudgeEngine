@@ -58,14 +58,16 @@ func GenerateToken(submissionId int64, verdict string, execTime, execMem *float3
 	}, nil
 }
 
-func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
+func (h *Handler) ProduceVerdict(verdict *structs.Verdict, ackStatus *bool) {
 	if verdict == nil || verdict.Submission == nil {
 		log.Println("Error: verdict or submission is nil")
+		verdict.Result = "ie"
 		return
 	}
 
 	if verdict.Submission.SubmissionId == nil {
 		log.Println("Error: submission_id is nil")
+		verdict.Result = "ie"
 		return
 	}
 
@@ -79,6 +81,7 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 		)
 		if err != nil {
 			log.Println("Error generating token:", err)
+			verdict.Result = "ie"
 			return
 		}
 
@@ -94,6 +97,7 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 		req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonData))
 		if err != nil {
 			log.Println("Error creating PUT request:", err)
+			*ackStatus = false
 			return
 		}
 		req.Header.Set("Content-Type", "application/json")
@@ -102,6 +106,7 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 		resp, err := httpClient.Do(req)
 		if err != nil {
 			log.Println("Error sending PUT request:", err)
+			*ackStatus = false
 			return
 		}
 		defer resp.Body.Close()
@@ -114,10 +119,12 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict) {
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 			log.Printf("PUT request failed with status %d: %s", resp.StatusCode, string(bodyResp))
+			*ackStatus = false
 			return
 		}
 
 		log.Printf("PUT response status: %s", resp.Status)
 		log.Printf("PUT response body: %s", string(bodyResp))
+		*ackStatus = true
 	}()
 }
