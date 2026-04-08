@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,7 +15,7 @@ import (
 	"github.com/judgenot0/judge-deamon/utils"
 )
 
-func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) string {
+func run(ctx context.Context, boxId int, runReq *structs.Submission, handler *handlers.Handler) string {
 	if runReq.Language == "" {
 		return "ce"
 	}
@@ -27,12 +28,12 @@ func run(boxId int, runReq *structs.Submission, handler *handlers.Handler) strin
 		return "ce"
 	}
 
-	verdict, err := runner.Compile(boxId, runReq)
+	verdict, err := runner.Compile(ctx, boxId, runReq)
 	if err != nil {
 		return "ce"
 	}
 
-	verdict = runner.Run(boxId, runReq, handler)
+	verdict = runner.Run(ctx, boxId, runReq, handler)
 	return verdict.Result
 }
 
@@ -53,7 +54,7 @@ func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
 		utils.SendResponse(w, http.StatusServiceUnavailable, "Server shutting down")
 	case worker := <-s.scheduler.WorkChannel:
 		defer func() {
-			cmd := exec.Command("isolate", fmt.Sprintf("--box-id=%d", worker.Id), "--cg", "--init")
+			cmd := exec.CommandContext(r.Context(), "isolate", fmt.Sprintf("--box-id=%d", worker.Id), "--cg", "--cleanup")
 			if err := cmd.Run(); err != nil {
 				log.Printf("Error resetting sandbox %d: %v", worker.Id, err)
 			}
@@ -68,7 +69,7 @@ func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
 					panicked = true
 				}
 			}()
-			verdict = run(worker.Id, &runReq, s.scheduler.Handler)
+			verdict = run(r.Context(), worker.Id, &runReq, s.scheduler.Handler)
 		}()
 
 		if panicked {
