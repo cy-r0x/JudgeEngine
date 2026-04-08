@@ -61,70 +61,72 @@ func GenerateToken(submissionId int64, verdict string, execTime, execMem *float3
 func (h *Handler) ProduceVerdict(verdict *structs.Verdict, ackStatus *bool) {
 	if verdict == nil || verdict.Submission == nil {
 		log.Println("Error: verdict or submission is nil")
-		verdict.Result = "ie"
+		if verdict != nil {
+			verdict.Result = "ie"
+		}
+		*ackStatus = false
 		return
 	}
 
 	if verdict.Submission.SubmissionId == nil {
 		log.Println("Error: submission_id is nil")
 		verdict.Result = "ie"
+		*ackStatus = false
 		return
 	}
 
-	go func() {
-		payload, err := GenerateToken(
-			*(verdict.Submission.SubmissionId),
-			verdict.Result,
-			verdict.MaxTime,
-			verdict.MaxRSS,
-			h.Config.EngineKey,
-		)
-		if err != nil {
-			log.Println("Error generating token:", err)
-			verdict.Result = "ie"
-			return
-		}
+	payload, err := GenerateToken(
+		*(verdict.Submission.SubmissionId),
+		verdict.Result,
+		verdict.MaxTime,
+		verdict.MaxRSS,
+		h.Config.EngineKey,
+	)
+	if err != nil {
+		log.Println("Error generating token:", err)
+		verdict.Result = "ie"
+		return
+	}
 
-		jsonData, err := json.Marshal(payload)
-		if err != nil {
-			log.Println("Error marshaling payload:", err)
-			return
-		}
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		log.Println("Error marshaling payload:", err)
+		return
+	}
 
-		endpoint := strings.TrimSuffix(h.Config.ServerEndpoint, "/")
-		url := fmt.Sprintf("%s/api/submissions", endpoint)
+	endpoint := strings.TrimSuffix(h.Config.ServerEndpoint, "/")
+	url := fmt.Sprintf("%s/api/submission", endpoint)
 
-		req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonData))
-		if err != nil {
-			log.Println("Error creating PUT request:", err)
-			*ackStatus = false
-			return
-		}
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+payload.AccessToken)
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Println("Error creating PUT request:", err)
+		*ackStatus = false
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+payload.AccessToken)
 
-		resp, err := httpClient.Do(req)
-		if err != nil {
-			log.Println("Error sending PUT request:", err)
-			*ackStatus = false
-			return
-		}
-		defer resp.Body.Close()
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		log.Println("Error sending PUT request:", err)
+		*ackStatus = false
+		return
+	}
+	defer resp.Body.Close()
 
-		bodyResp, err := io.ReadAll(resp.Body)
-		if err != nil {
-			log.Printf("Error reading response body: %v", err)
-			return
-		}
+	bodyResp, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("Error reading response body: %v", err)
+		return
+	}
 
-		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-			log.Printf("PUT request failed with status %d: %s", resp.StatusCode, string(bodyResp))
-			*ackStatus = false
-			return
-		}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Printf("PUT request failed with status %d: %s", resp.StatusCode, string(bodyResp))
+		*ackStatus = false
+		return
+	}
 
-		log.Printf("PUT response status: %s", resp.Status)
-		log.Printf("PUT response body: %s", string(bodyResp))
-		*ackStatus = true
-	}()
+	log.Printf("PUT response status: %s", resp.Status)
+	log.Printf("PUT response body: %s", string(bodyResp))
+	*ackStatus = true
 }
