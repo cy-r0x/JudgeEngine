@@ -1,6 +1,7 @@
 package languages
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -15,7 +16,7 @@ import (
 type CPP struct {
 }
 
-func (p *CPP) Compile(boxId int, submission *structs.Submission) (structs.Verdict, error) {
+func (p *CPP) Compile(ctx context.Context, boxId int, submission *structs.Submission) (structs.Verdict, error) {
 	code := submission.SourceCode
 
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
@@ -28,7 +29,7 @@ func (p *CPP) Compile(boxId int, submission *structs.Submission) (structs.Verdic
 
 	outputBinary := filepath.Join(boxPath, "main")
 
-	output, err := exec.Command(
+	output, err := exec.CommandContext(ctx,
 		"g++",
 		"--std=gnu++23",
 		"-O2",
@@ -63,7 +64,7 @@ func (p *CPP) Compile(boxId int, submission *structs.Submission) (structs.Verdic
 	return structs.Verdict{}, nil
 }
 
-func (p *CPP) Run(boxId int, submission *structs.Submission, handler *handlers.Handler) structs.Verdict {
+func (p *CPP) Run(ctx context.Context, boxId int, submission *structs.Submission, handler *handlers.Handler) structs.Verdict {
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
 	var maxTime float32
@@ -98,7 +99,7 @@ func (p *CPP) Run(boxId int, submission *structs.Submission, handler *handlers.H
 		}
 
 		memLimit := submission.MemoryLimit * 1024
-		isolateCmd := exec.Command("isolate",
+		isolateCmd := exec.CommandContext(ctx, "isolate",
 			fmt.Sprintf("--box-id=%d", boxId),
 			"--cg",
 			"--stdin=in.txt",

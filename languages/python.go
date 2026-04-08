@@ -1,6 +1,7 @@
 package languages
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -14,7 +15,7 @@ import (
 type Python struct {
 }
 
-func (p *Python) Compile(boxId int, submission *structs.Submission) (structs.Verdict, error) {
+func (p *Python) Compile(ctx context.Context, boxId int, submission *structs.Submission) (structs.Verdict, error) {
 	code := submission.SourceCode
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
@@ -26,7 +27,7 @@ func (p *Python) Compile(boxId int, submission *structs.Submission) (structs.Ver
 	return structs.Verdict{}, nil
 }
 
-func (p *Python) Run(boxId int, submission *structs.Submission, handler *handlers.Handler) structs.Verdict {
+func (p *Python) Run(ctx context.Context, boxId int, submission *structs.Submission, handler *handlers.Handler) structs.Verdict {
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 
 	var maxTime float32
@@ -62,7 +63,7 @@ func (p *Python) Run(boxId int, submission *structs.Submission, handler *handler
 			break
 		}
 
-		isolateCmd := exec.Command("isolate",
+		isolateCmd := exec.CommandContext(ctx, "isolate",
 			fmt.Sprintf("--box-id=%d", boxId),
 			"--cg",
 			"--stdin=in.txt",

@@ -205,7 +205,7 @@ func (q *Queue) StartConsume(ctx context.Context, scheduler *scheduler.Scheduler
 					return nil
 
 				case worker := <-scheduler.WorkChannel:
-					
+
 					var submission structs.Submission
 					err := json.Unmarshal(d.Body, &submission)
 					if err != nil {
@@ -216,16 +216,9 @@ func (q *Queue) StartConsume(ctx context.Context, scheduler *scheduler.Scheduler
 						continue
 					}
 
-					go func(delivery amqp.Delivery, w structs.Worker, sub structs.Submission) {
-						defer func() {
-							if r := recover(); r != nil {
-								log.Printf("Panic in scheduler.Work: %v", r)
-								delivery.Nack(false, true)
-								scheduler.WorkChannel <- w
-							}
-						}()
-						scheduler.Work(w, sub, delivery)
-					}(d, worker, submission)
+					go func(delivery amqp.Delivery, w structs.Worker, sub *structs.Submission) {
+						scheduler.Work(ctx, w, sub, delivery)
+					}(d, worker, &submission)
 
 				case <-time.After(5 * time.Minute):
 					log.Println("Warning: No workers available for 5 minutes, message will be redelivered")

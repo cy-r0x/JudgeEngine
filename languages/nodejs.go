@@ -1,6 +1,7 @@
 package languages
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -27,7 +28,7 @@ func resolveNodeBinary() (string, error) {
 	return "", errors.New("system node executable not found at /usr/bin/node or /usr/bin/nodejs")
 }
 
-func (p *NodeJS) Compile(boxId int, submission *structs.Submission) (structs.Verdict, error) {
+func (p *NodeJS) Compile(ctx context.Context, boxId int, submission *structs.Submission) (structs.Verdict, error) {
 	code := submission.SourceCode
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 	nodeBinary, err := resolveNodeBinary()
@@ -47,7 +48,7 @@ func (p *NodeJS) Compile(boxId int, submission *structs.Submission) (structs.Ver
 		return structs.Verdict{}, err
 	}
 
-	output, err := exec.Command(nodeBinary, "--check", jsFilePath).CombinedOutput()
+	output, err := exec.CommandContext(ctx, nodeBinary, "--check", jsFilePath).CombinedOutput()
 	if err != nil {
 		log.Printf("Node.js syntax error: %v, output: %s", err, string(output))
 		return structs.Verdict{
@@ -61,7 +62,7 @@ func (p *NodeJS) Compile(boxId int, submission *structs.Submission) (structs.Ver
 	return structs.Verdict{}, nil
 }
 
-func (p *NodeJS) Run(boxId int, submission *structs.Submission, handler *handlers.Handler) structs.Verdict {
+func (p *NodeJS) Run(ctx context.Context, boxId int, submission *structs.Submission, handler *handlers.Handler) structs.Verdict {
 	boxPath := fmt.Sprintf("/var/local/lib/isolate/%d/box/", boxId)
 	nodeBinary, err := resolveNodeBinary()
 	if err != nil {
@@ -108,7 +109,7 @@ func (p *NodeJS) Run(boxId int, submission *structs.Submission, handler *handler
 			break
 		}
 
-		isolateCmd := exec.Command("isolate",
+		isolateCmd := exec.CommandContext(ctx, "isolate",
 			fmt.Sprintf("--box-id=%d", boxId),
 			"--cg",
 			"--processes=16",

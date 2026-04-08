@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os/exec"
@@ -12,8 +13,8 @@ import (
 )
 
 type Runner interface {
-	Compile(boxId int, runReq *structs.Submission) (structs.Verdict, error)
-	Run(boxId int, runReq *structs.Submission, handler *handlers.Handler) structs.Verdict
+	Compile(ctx context.Context, boxId int, runReq *structs.Submission) (structs.Verdict, error)
+	Run(ctx context.Context, boxId int, runReq *structs.Submission, handler *handlers.Handler) structs.Verdict
 }
 
 type Scheduler struct {
@@ -71,7 +72,7 @@ func (mngr *Scheduler) With(workerCount int) error {
 	return nil
 }
 
-func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d amqp.Delivery) {
+func (mngr *Scheduler) Work(ctx context.Context, w structs.Worker, submission *structs.Submission, d amqp.Delivery) {
 	// if true we need to ack the message queue
 	ackStatus := true
 
@@ -81,7 +82,7 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 			ackStatus = false
 		}
 
-		cmd := exec.Command("isolate", fmt.Sprintf("--box-id=%d", w.Id), "--cg", "--init")
+		cmd := exec.Command("isolate", fmt.Sprintf("--box-id=%d", w.Id), "--cg", "--cleanup")
 		if err := cmd.Run(); err != nil {
 			log.Printf("Error cleaning up sandbox %d: %v", w.Id, err)
 		}
@@ -99,13 +100,13 @@ func (mngr *Scheduler) Work(w structs.Worker, submission structs.Submission, d a
 		mngr.WorkChannel <- w
 	}()
 
-	mngr.processWork(w, submission, &ackStatus)
+	mngr.processWork(ctx, w, submission, &ackStatus)
 }
 
-func (mngr *Scheduler) processWork(w structs.Worker, submission structs.Submission, ackStatus *bool) {
+func (mngr *Scheduler) processWork(ctx context.Context, w structs.Worker, submission *structs.Submission, ackStatus *bool) {
 
 	verdict := structs.Verdict{
-		Submission: &submission,
+		Submission: submission,
 		Result:     "ac",
 		MaxTime:    nil,
 		MaxRSS:     nil,
@@ -134,18 +135,18 @@ func (mngr *Scheduler) processWork(w structs.Worker, submission structs.Submissi
 		return
 	}
 
-	verdict, err := runner.Compile(w.Id, &submission)
+	var err error
+	verdict, err = runner.Compile(ctx, w.Id, submission)
 	if err != nil {
 		log.Printf("Compilation error for submission %d: %v", getSubmissionID(submission), err)
 		verdict.Result = "ce"
-		mngr.Handler.ProduceVerdict(&verdict, ackStatus)
 		return
 	}
 
-	verdict = runner.Run(w.Id, &submission, mngr.Handler)
+	verdict = runner.Run(ctx, w.Id, submission, mngr.Handler)
 }
 
-func getSubmissionID(submission structs.Submission) int64 {
+func getSubmissionID(submission *structs.Submission) int64 {
 	if submission.SubmissionId != nil {
 		return *submission.SubmissionId
 	}
