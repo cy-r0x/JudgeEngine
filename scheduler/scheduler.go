@@ -86,7 +86,7 @@ func (mngr *Scheduler) Work(ctx context.Context, w structs.Worker, submission *s
 		if err := cmd.Run(); err != nil {
 			log.Printf("Error cleaning up sandbox %d: %v", w.Id, err)
 		}
-		cmd = exec.CommandContext(ctx, "isolate", fmt.Sprintf("--box-id=%d", w.Id), "--cg", "--init")
+		cmd = exec.Command("isolate", fmt.Sprintf("--box-id=%d", w.Id), "--cg", "--init")
 		if err := cmd.Run(); err != nil {
 			log.Printf("Error reinitializing sandbox %d: %v", w.Id, err)
 		}

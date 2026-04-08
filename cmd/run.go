@@ -54,10 +54,16 @@ func (s *Server) handlerRun(w http.ResponseWriter, r *http.Request) {
 		utils.SendResponse(w, http.StatusServiceUnavailable, "Server shutting down")
 	case worker := <-s.scheduler.WorkChannel:
 		defer func() {
-			cmd := exec.CommandContext(r.Context(), "isolate", fmt.Sprintf("--box-id=%d", worker.Id), "--cg", "--cleanup")
-			if err := cmd.Run(); err != nil {
-				log.Printf("Error resetting sandbox %d: %v", worker.Id, err)
+			cleanupCmd := exec.Command("isolate", fmt.Sprintf("--box-id=%d", worker.Id), "--cg", "--cleanup")
+			if err := cleanupCmd.Run(); err != nil {
+				log.Printf("Error cleaning up sandbox %d: %v", worker.Id, err)
 			}
+
+			initCmd := exec.Command("isolate", fmt.Sprintf("--box-id=%d", worker.Id), "--cg", "--init")
+			if err := initCmd.Run(); err != nil {
+				log.Printf("Error reinitializing sandbox %d: %v", worker.Id, err)
+			}
+
 			s.scheduler.WorkChannel <- worker
 		}()
 
