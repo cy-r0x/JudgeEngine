@@ -35,7 +35,7 @@ func main() {
 		log.Fatalf("Failed to initialize scheduler: %v", err)
 	}
 
-	server := cmd.NewServer(config, queueManager, scheduler, notifierCtx)
+	server := cmd.NewServer(config, scheduler, notifierCtx)
 	server.RegisterMetrics()
 
 	sigChan := make(chan os.Signal, 1)
