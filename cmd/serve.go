@@ -8,22 +8,19 @@ import (
 	"time"
 
 	"github.com/judgenot0/judge-deamon/config"
-	"github.com/judgenot0/judge-deamon/queue"
 	"github.com/judgenot0/judge-deamon/scheduler"
 )
 
 type Server struct {
 	config     *config.Config
-	manager    *queue.Queue
 	scheduler  *scheduler.Scheduler
 	httpServer *http.Server
 	ctx        context.Context
 }
 
-func NewServer(config *config.Config, queue *queue.Queue, scheduler *scheduler.Scheduler, ctx context.Context) *Server {
+func NewServer(config *config.Config, scheduler *scheduler.Scheduler, ctx context.Context) *Server {
 	return &Server{
 		config:    config,
-		manager:   queue,
 		scheduler: scheduler,
 		ctx:       ctx,
 	}
