@@ -2,6 +2,7 @@ package languages
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -24,6 +25,18 @@ func (p *Python) Compile(ctx context.Context, boxId int, submission *structs.Sub
 		log.Printf("Error writing code to file: %v", err)
 		return structs.Verdict{}, err
 	}
+
+	output, err := exec.CommandContext(ctx, "/usr/bin/python3", "-m", "py_compile", pyFilePath).CombinedOutput()
+	if err != nil {
+		log.Printf("Python syntax error: %v, output: %s", err, string(output))
+		return structs.Verdict{
+			Submission: submission,
+			Result:     "ce",
+			MaxTime:    nil,
+			MaxRSS:     nil,
+		}, errors.New("compilation error")
+	}
+
 	return structs.Verdict{}, nil
 }
 
