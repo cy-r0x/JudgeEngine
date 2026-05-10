@@ -58,6 +58,25 @@ func GenerateToken(submissionId int64, verdict string, execTime, execMem *float3
 	}, nil
 }
 
+func mapVerdict(result string) string {
+	switch result {
+	case "ac":
+		return "ACCEPTED"
+	case "wa":
+		return "WRONG_ANSWER"
+	case "ce":
+		return "COMPILATION_ERROR"
+	case "tle":
+		return "TIME_LIMIT_EXCEEDED"
+	case "mle":
+		return "MEMORY_LIMIT_EXCEEDED"
+	case "re":
+		return "RUNTIME_ERROR"
+	default:
+		return result
+	}
+}
+
 func (h *Handler) ProduceVerdict(verdict *structs.Verdict, ackStatus *bool) {
 	if verdict == nil || verdict.Submission == nil {
 		log.Println("Error: verdict or submission is nil")
@@ -77,7 +96,7 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict, ackStatus *bool) {
 
 	payload, err := GenerateToken(
 		*(verdict.Submission.SubmissionId),
-		verdict.Result,
+		mapVerdict(verdict.Result),
 		verdict.MaxTime,
 		verdict.MaxRSS,
 		h.Config.EngineKey,
