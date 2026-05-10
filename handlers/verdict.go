@@ -17,16 +17,16 @@ import (
 )
 
 type EngineData struct {
-	SubmissionId    int64    `json:"submission_id"`
+	SubmissionId    int64    `json:"submissionId"`
 	Verdict         string   `json:"verdict"`
-	ExecutionTime   *float32 `json:"execution_time"`
-	ExecutionMemory *float32 `json:"execution_memory"`
+	ExecutionTime   *float32 `json:"executionTime"`
+	ExecutionMemory *float32 `json:"executionMemory"`
 	Timestamp       int64    `json:"timestamp"`
 }
 
 type EnginePayload struct {
 	Data        *EngineData `json:"payload"`
-	AccessToken string      `json:"access_token"`
+	AccessToken string      `json:"accessToken"`
 }
 
 var httpClient = &http.Client{
