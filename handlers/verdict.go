@@ -64,6 +64,8 @@ func mapVerdict(result string) string {
 		return "ACCEPTED"
 	case "wa":
 		return "WRONG_ANSWER"
+	case "pe":
+		return "PRESENTATION_ERROR"
 	case "ce":
 		return "COMPILATION_ERROR"
 	case "tle":

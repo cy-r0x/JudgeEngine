@@ -117,9 +117,18 @@ func (p *CPP) Run(ctx context.Context, boxId int, submission *structs.Submission
 		_ = isolateCmd.Run()
 		switch submission.CheckerType {
 		case "float":
-			handler.CompareFloat(boxPath, &maxTime, &maxRSS, &finalResult, submission.CheckerStrictSpace, submission.CheckerPrecision)
+			handler.CompareFloatWithTestlib(boxPath, &maxTime, &maxRSS, &finalResult, submission.CheckerPrecision)
+		case "int":
+			handler.CompareWithTestlib(boxPath, &maxTime, &maxRSS, &finalResult, "int_checker")
+		case "unordered":
+			handler.CompareWithTestlib(boxPath, &maxTime, &maxRSS, &finalResult, "unordered_checker")
 		default:
-			handler.Compare(boxPath, &maxTime, &maxRSS, &finalResult, submission.CheckerStrictSpace)
+			// "string" or any other undefined type
+			if submission.CheckerStrictSpace {
+				handler.CompareWithTestlib(boxPath, &maxTime, &maxRSS, &finalResult, "strict_checker")
+			} else {
+				handler.CompareWithTestlib(boxPath, &maxTime, &maxRSS, &finalResult, "default_checker")
+			}
 		}
 
 		if finalResult != "ac" {

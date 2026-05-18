@@ -96,9 +96,17 @@ func (p *Python) Run(ctx context.Context, boxId int, submission *structs.Submiss
 
 		switch submission.CheckerType {
 		case "float":
-			handler.CompareFloat(boxPath, &maxTime, &maxRSS, &finalResult, submission.CheckerStrictSpace, submission.CheckerPrecision)
+			handler.CompareFloatWithTestlib(boxPath, &maxTime, &maxRSS, &finalResult, submission.CheckerPrecision)
+		case "int":
+			handler.CompareWithTestlib(boxPath, &maxTime, &maxRSS, &finalResult, "int_checker")
+		case "unordered":
+			handler.CompareWithTestlib(boxPath, &maxTime, &maxRSS, &finalResult, "unordered_checker")
 		default:
-			handler.Compare(boxPath, &maxTime, &maxRSS, &finalResult, submission.CheckerStrictSpace)
+			if submission.CheckerStrictSpace {
+				handler.CompareWithTestlib(boxPath, &maxTime, &maxRSS, &finalResult, "strict_checker")
+			} else {
+				handler.CompareWithTestlib(boxPath, &maxTime, &maxRSS, &finalResult, "default_checker")
+			}
 		}
 
 		if finalResult != "ac" {
