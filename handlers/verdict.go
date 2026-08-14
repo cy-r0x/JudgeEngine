@@ -18,7 +18,7 @@ import (
 
 type EngineData struct {
 	SubmissionId    int64    `json:"submissionId"`
-	Verdict         string   `json:"verdict"`
+	Status          string   `json:"verdict"`
 	ExecutionTime   *float32 `json:"executionTime"`
 	ExecutionMemory *float32 `json:"executionMemory"`
 	Timestamp       int64    `json:"timestamp"`
@@ -36,7 +36,7 @@ var httpClient = &http.Client{
 func GenerateToken(submissionId int64, verdict string, execTime, execMem *float32, secret string) (*EnginePayload, error) {
 	data := &EngineData{
 		SubmissionId:    submissionId,
-		Verdict:         verdict,
+		Status:          verdict,
 		ExecutionTime:   execTime,
 		ExecutionMemory: execMem,
 		Timestamp:       time.Now().Unix(),
@@ -60,18 +60,20 @@ func GenerateToken(submissionId int64, verdict string, execTime, execMem *float3
 
 func mapVerdict(result string) string {
 	switch result {
-	case "ac":
+	case "ac", "ACCEPTED":
 		return "ACCEPTED"
-	case "wa":
+	case "wa", "WRONG_ANSWER":
 		return "WRONG_ANSWER"
-	case "ce":
+	case "ce", "COMPILATION_ERROR":
 		return "COMPILATION_ERROR"
-	case "tle":
+	case "tle", "TIME_LIMIT_EXCEEDED":
 		return "TIME_LIMIT_EXCEEDED"
-	case "mle":
+	case "mle", "MEMORY_LIMIT_EXCEEDED":
 		return "MEMORY_LIMIT_EXCEEDED"
-	case "re":
+	case "re", "RUNTIME_ERROR":
 		return "RUNTIME_ERROR"
+	case "ie", "INTERNAL_ERROR":
+		return "INTERNAL_ERROR"
 	default:
 		return result
 	}
@@ -104,12 +106,14 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict, ackStatus *bool) {
 	if err != nil {
 		log.Println("Error generating token:", err)
 		verdict.Result = "ie"
+		*ackStatus = false
 		return
 	}
 
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		log.Println("Error marshaling payload:", err)
+		*ackStatus = false
 		return
 	}
 
@@ -136,6 +140,7 @@ func (h *Handler) ProduceVerdict(verdict *structs.Verdict, ackStatus *bool) {
 	bodyResp, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Printf("Error reading response body: %v", err)
+		*ackStatus = false
 		return
 	}
 
